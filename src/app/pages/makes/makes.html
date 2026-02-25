@@ -1,0 +1,115 @@
+<p-toast />
+<p-toolbar styleClass="mb-6">
+    <ng-template #start>
+        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
+        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedMakes()"
+            [disabled]="!selectedMakes || !selectedMakes.length" />
+    </ng-template>
+
+    <ng-template #end>
+        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+    </ng-template>
+</p-toolbar>
+
+<p-table #dt [value]="makes()" [rows]="5" [paginator]="true" [lazy]="true" (onLazyLoad)="loadMakes($event)"
+    [totalRecords]="totalRecords()" [loading]="loading()" [rowsPerPageOptions]="[5, 10, 20, 30]" [rowHover]="true"
+    dataKey="id" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} makes"
+    [showCurrentPageReport]="true" [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedMakes">
+    <ng-template #caption>
+        <div class="flex items-center justify-between">
+            <h5 class="m-0">Manage Makes</h5>
+            <p-iconfield>
+                <p-inputicon styleClass="pi pi-search" />
+                <input pInputText type="text" (input)="onGlobalFilter($event)" placeholder="Search..." />
+            </p-iconfield>
+        </div>
+    </ng-template>
+
+    <!-- If you want server-side sorting too, keep pSortableColumn;
+       PrimeNG will include sortField/sortOrder in onLazyLoad -->
+    <ng-template #header>
+        <tr>
+            <th style="width: 3rem">
+                <p-tableHeaderCheckbox />
+            </th>
+            <th pSortableColumn="name" style="min-width:16rem">
+                Name <p-sortIcon field="name" />
+            </th>
+            <th>Logo</th>
+            <th pSortableColumn="country" style="min-width:16rem">
+                Country <p-sortIcon field="country" />
+            </th>
+            <th style="min-width: 12rem"></th>
+        </tr>
+    </ng-template>
+
+    <ng-template #body let-makes>
+        <tr>
+            <td style="width: 3rem">
+                <p-tableCheckbox [value]="makes" />
+            </td>
+            <td style="min-width: 16rem">{{ makes.name }}</td>
+            <td>
+                <img [src]="makes.imageURL" [alt]="makes.name" style="width: 64px" class="rounded" />
+            </td>
+            <td style="min-width: 16rem">{{ makes.country }}</td>
+            <td class="text-right">
+                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
+                    (click)="editMake(makes)" />
+                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+                    (click)="deleteMake(makes)" />
+            </td>
+        </tr>
+    </ng-template>
+</p-table>
+
+<p-dialog [(visible)]="makeDialog" [style]="{ width: '450px' }" header="Product Details" [modal]="true">
+    <ng-template #content>
+        <div class="flex flex-col gap-6">
+            <div>
+                <label class="block font-bold mb-3">
+                    Logo
+                    <i class="pi pi-info-circle text-color-secondary"
+                        pTooltip="Min 256x256px • Max 2000x2000px • Near-square (1:1) • Max 1MB"
+                        tooltipPosition="right">
+                    </i>
+                </label>
+
+                <div class="flex items-center justify-center mb-3" *ngIf="make.imageURL">
+                    <div
+                        class="w-64 h-64 overflow-hidden rounded-lg border bg-gray-50 flex items-center justify-center">
+                        <img [src]="make.imageURL" class="w-full h-full object-cover" />
+                    </div>
+                </div>
+
+                <!-- <input type="file" accept="image/*" (change)="onFileSelected($event)" /> -->
+                <div class="flex flex-col gap-4 items-center justify-center">
+                    <p-fileupload mode="basic" chooseLabel="Choose" chooseIcon="pi pi-upload" accept="image/*"
+                        maxFileSize="1000000" [auto]="false" [customUpload]="true" (onSelect)="onFileSelect($event)" />
+                </div>
+            </div>
+            <div>
+                <label for="name" class="block font-bold mb-3">Name*</label>
+                <input type="text" pInputText id="name" [(ngModel)]="make.name" required autofocus fluid />
+                <small class="text-red-500" *ngIf="submitted && !make.name">Name is required.</small>
+            </div>
+            <div>
+                <label for="country" class="block font-bold mb-3">Country*</label>
+
+                <p-autocomplete class="w-full" [(ngModel)]="make.country" [suggestions]="autoFilteredValue"
+                    placeholder="Country" [dropdown]="true" [forceSelection]="true"
+                    (completeMethod)="filterCountry($event)" appendTo="body" required />
+                <small class="text-red-500" *ngIf="submitted && !make.country">Country is required.</small>
+
+                <!-- <small class="text-red-500" *ngIf="submitted && !make.country">Country is required.</small> -->
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template #footer>
+        <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
+        <p-button label="Save" icon="pi pi-check" (click)="saveMake()" />
+    </ng-template>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: '450px' }" />

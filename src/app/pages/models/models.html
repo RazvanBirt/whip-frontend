@@ -1,0 +1,712 @@
+<p-toast />
+<p-toolbar styleClass="mb-6">
+    <ng-template #start>
+        <!-- <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" /> -->
+        <p-button label="Catalog Builder" icon="pi pi-sitemap" severity="secondary" class="mr-2"
+            (onClick)="openCatalogBuilder()" />
+        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedModels()"
+            [disabled]="!selectedModels || !selectedModels.length" />
+    </ng-template>
+
+    <ng-template #end>
+        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+    </ng-template>
+</p-toolbar>
+
+<p-table #dt [value]="models()" [rows]="5" [paginator]="true" [lazy]="true" (onLazyLoad)="loadModels($event)"
+    [totalRecords]="totalRecords()" [loading]="loading()" [rowsPerPageOptions]="[5, 10, 20, 30]" [rowHover]="true"
+    dataKey="id" currentPageReportTemplate="Showing {first} to {last} of {totalRecords} models"
+    [showCurrentPageReport]="true" [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedModels">
+    <ng-template #caption>
+        <div class="flex items-center justify-between">
+            <h5 class="m-0">Manage Models</h5>
+            <p-iconfield>
+                <p-inputicon styleClass="pi pi-search" />
+                <input pInputText type="text" (input)="onGlobalFilter($event)" placeholder="Search..." />
+            </p-iconfield>
+        </div>
+    </ng-template>
+
+    <!-- If you want server-side sorting too, keep pSortableColumn;
+       PrimeNG will include sortField/sortOrder in onLazyLoad -->
+    <ng-template #header>
+        <tr>
+            <th style="width: 3rem">
+                <p-tableHeaderCheckbox />
+            </th>
+            <th pSortableColumn="name" style="min-width: 16rem">Name <p-sortIcon field="name" /></th>
+            <th>Logo</th>
+            <th pSortableColumn="country" style="min-width: 16rem">Country <p-sortIcon field="country" /></th>
+            <th style="min-width: 12rem"></th>
+        </tr>
+    </ng-template>
+
+    <ng-template #body let-models>
+        <tr>
+            <td style="width: 3rem">
+                <p-tableCheckbox [value]="models" />
+            </td>
+            <td style="min-width: 16rem">{{ models.name }}</td>
+            <td>
+                <img [src]="models.imageURL" [alt]="models.name" style="width: 64px" class="rounded" />
+            </td>
+            <td style="min-width: 16rem">{{ models.country }}</td>
+            <td class="text-right">
+                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
+                    (click)="openCatalogBuilder(models.id); $event.stopPropagation();" />
+                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+                    (click)="deleteModel(models)" />
+            </td>
+        </tr>
+    </ng-template>
+</p-table>
+
+<p-dialog [(visible)]="catalogDialog" [style]="{ width: '85vw', maxWidth: '1200px' }" header="Catalog Builder (Upsert)"
+    [modal]="true" [draggable]="false" [resizable]="false">
+    <ng-template #content>
+        <div class="flex flex-col gap-5">
+            <!-- Make + Model -->
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Make</label>
+                    <p-autocomplete class="w-full" [(ngModel)]="catalog.make" [suggestions]="makePager.items"
+                        optionLabel="name" dataKey="id" [dropdown]="true" [forceSelection]="false" appendTo="body"
+                        (completeMethod)="makePager.search($event)">
+                        <ng-template pTemplate="footer">
+                            <div *ngIf="makePager.hasMore"
+                                class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
+                                (mouseenter)="makePager.hoverStart()" (mouseleave)="makePager.hoverEnd()">
+                                <span class="text-color-secondary">Hover to load more…</span>
+                                <span class="text-color-secondary">{{ makePager.loading ? 'Loading…' : '(hold cursor)'
+                                    }}</span>
+                            </div>
+
+                            <div *ngIf="!makePager.hasMore && makePager.items.length"
+                                class="px-3 py-2 border-t text-sm text-color-secondary">No more results.</div>
+                        </ng-template>
+                    </p-autocomplete>
+                </div>
+
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Model name</label>
+                    <input pInputText class="w-full" [(ngModel)]="catalog.model.name" placeholder="e.g. Clio" />
+                    <small class="text-red-500" *ngIf="catalogSubmitted && !catalog.model.name">Required</small>
+                </div>
+            </div>
+
+            <p-divider />
+
+            <!-- Tabs -->
+            <p-tabs [(value)]="catalogStep">
+                <p-tablist>
+                    <p-tab value="gen">Generations</p-tab>
+                    <p-tab value="ph">Phases</p-tab>
+                    <p-tab value="bv">Body Variants</p-tab>
+                    <p-tab value="ver">Versions</p-tab>
+                    <p-tab value="cfg">Configs & Specs</p-tab>
+                </p-tablist>
+
+                <!-- GENERATIONS -->
+                <p-tabpanel value="gen">
+                    <div class="flex items-center justify-between mb-3">
+                        <b>Generations</b>
+                        <p-button label="Add" icon="pi pi-plus" severity="secondary" (click)="openGenDialog()" />
+                    </div>
+
+                    <p-table [value]="catalog.generations" dataKey="__key" [tableStyle]="{ 'min-width': '60rem' }">
+                        <ng-template #header>
+                            <tr>
+                                <th>Name</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th style="width: 10rem"></th>
+                            </tr>
+                        </ng-template>
+
+                        <ng-template #body let-g>
+                            <tr class="cursor-pointer transition-colors hover:!bg-gray-100 dark:hover:!bg-gray-800"
+                                [ngClass]="{
+                                    '!bg-blue-50 dark:!bg-blue-900/40': selectedGen?.__key === g.__key
+                                }" (click)="selectGen(g)">
+                                <td>{{ g.name }}</td>
+                                <td>{{ g.startYear }}</td>
+                                <td>{{ g.endYear }}</td>
+                                <td class="text-right">
+                                    <p-button icon="pi pi-pencil" [rounded]="true" [outlined]="true" class="mr-2"
+                                        (click)="openGenDialog(g); $event.stopPropagation();" />
+                                    <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+                                        (click)="removeGen(g); $event.stopPropagation();" />
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+
+                    <small class="text-color-secondary" *ngIf="!catalog.generations.length"> Add a generation to
+                        continue. </small>
+                </p-tabpanel>
+
+                <!-- PHASES -->
+                <p-tabpanel value="ph">
+                    <ng-container *ngIf="selectedGen; else needGenForPhases">
+                        <div class="flex items-center justify-between mb-3">
+                            <b>Phases</b>
+                            <div class="flex items-center gap-2">
+                                <span class="text-color-secondary">Generation:</span>
+                                <b>{{ selectedGen.name || 'None selected' }}</b>
+                                <p-button label="Add" icon="pi pi-plus" severity="secondary" (click)="openPhaseDialog()"
+                                    [disabled]="!selectedGen" />
+                            </div>
+                        </div>
+
+                        <p-table [value]="selectedGen.phases || []" dataKey="__key">
+                            <ng-template #header>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th style="width: 10rem"></th>
+                                </tr>
+                            </ng-template>
+
+                            <ng-template #body let-ph>
+                                <tr class="cursor-pointer transition-colors hover:!bg-gray-100 dark:hover:!bg-gray-800">
+                                    <td>{{ ph.name }}</td>
+                                    <td>{{ ph.startYear }}</td>
+                                    <td>{{ ph.endYear }}</td>
+                                    <td class="text-right">
+                                        <p-button icon="pi pi-pencil" [rounded]="true" [outlined]="true" class="mr-2"
+                                            (click)="openPhaseDialog(ph)" />
+                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true"
+                                            [outlined]="true" (click)="removePhase(ph)" />
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+
+                        <small class="text-color-secondary" *ngIf="!selectedGen">Select a generation first.</small>
+                    </ng-container>
+
+                    <ng-template #needGenForPhases>
+                        <div class="border rounded-lg p-4 text-color-secondary flex items-center gap-2">
+                            <i class="pi pi-info-circle"></i>
+                            <div>
+                                <b class="text-color">Phases are linked to a Generation.</b><br />
+                                Go to <b>Generations</b> and click a row to select it.
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-tabpanel>
+
+                <!-- BODY VARIANTS -->
+                <p-tabpanel value="bv">
+                    <ng-container *ngIf="selectedGen; else needGenForBv">
+                        <div class="flex items-center justify-between mb-3">
+                            <b>Body Variants</b>
+                            <div class="flex items-center gap-2">
+                                <span class="text-color-secondary">Generation:</span>
+                                <b>{{ selectedGen.name }}</b>
+                                <p-button label="Add" icon="pi pi-plus" severity="secondary" (click)="openBvDialog()" />
+                            </div>
+                        </div>
+
+                        <p-table [value]="selectedGen.bodyVariants || []" dataKey="__key">
+                            <ng-template #header>
+                                <tr>
+                                    <th>Variant</th>
+                                    <th>Body type</th>
+                                    <th>Doors</th>
+                                    <th style="width: 10rem"></th>
+                                </tr>
+                            </ng-template>
+
+                            <ng-template #body let-bv>
+                                <tr class="cursor-pointer transition-colors hover:!bg-gray-100 dark:hover:!bg-gray-800"
+                                    [ngClass]="{ '!bg-blue-50 dark:!bg-blue-900/40': selectedBv?.__key === bv.__key }"
+                                    (click)="selectBv(bv)">
+                                    <td>{{ bv.name }}</td>
+                                    <td>{{ bv.bodyType?.name || bv.bodyType }}</td>
+                                    <td>{{ bv.doors }}</td>
+                                    <td class="text-right">
+                                        <p-button icon="pi pi-pencil" [rounded]="true" [outlined]="true" class="mr-2"
+                                            (click)="openBvDialog(bv); $event.stopPropagation();" />
+                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true"
+                                            [outlined]="true" (click)="removeBv(bv); $event.stopPropagation();" />
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+
+                        <small class="text-color-secondary" *ngIf="!(selectedGen.bodyVariants.length)"> No body variants
+                            yet — click “Add”. </small>
+                    </ng-container>
+
+                    <ng-template #needGenForBv>
+                        <div class="border rounded-lg p-4 text-color-secondary flex items-center gap-2">
+                            <i class="pi pi-info-circle"></i>
+                            <div>
+                                <b class="text-color">Body Variants are linked to a Generation.</b><br />
+                                Go to <b>Generations</b> and click a row to select it.
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-tabpanel>
+
+                <!-- VERSIONS -->
+                <p-tabpanel value="ver">
+                    <ng-container *ngIf="selectedBv; else needBvForVer">
+                        <div class="flex items-center justify-between mb-3">
+                            <b>Versions</b>
+                            <div class="flex items-center gap-2">
+                                <span class="text-color-secondary">Body Variant:</span>
+                                <b>{{ selectedBv.name }}</b>
+                                <p-button label="Add" icon="pi pi-plus" severity="secondary"
+                                    (click)="openVerDialog()" />
+                            </div>
+                        </div>
+
+                        <p-table [value]="selectedBv.versions || []" dataKey="__key">
+                            <ng-template #header>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phase</th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th style="width: 10rem"></th>
+                                </tr>
+                            </ng-template>
+
+                            <ng-template #body let-v>
+                                <tr class="cursor-pointer transition-colors hover:!bg-gray-100 dark:hover:!bg-gray-800"
+                                    [ngClass]="{ '!bg-blue-50 dark:!bg-blue-900/40': selectedVer?.__key === v.__key }"
+                                    (click)="selectVer(v)">
+                                    <td>{{ v.name }}</td>
+                                    <td>{{ v.phaseName || '-' }}</td>
+                                    <td>{{ v.startYear }}</td>
+                                    <td>{{ v.endYear }}</td>
+                                    <td class="text-right">
+                                        <p-button icon="pi pi-pencil" [rounded]="true" [outlined]="true" class="mr-2"
+                                            (click)="openVerDialog(v); $event.stopPropagation();" />
+                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true"
+                                            [outlined]="true" (click)="removeVer(v); $event.stopPropagation();" />
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+
+                        <small class="text-color-secondary" *ngIf="!(selectedBv.versions.length)"> No versions yet —
+                            click “Add”. </small>
+                    </ng-container>
+
+                    <ng-template #needBvForVer>
+                        <div class="border rounded-lg p-4 text-color-secondary flex items-center gap-2">
+                            <i class="pi pi-info-circle"></i>
+                            <div>
+                                <b class="text-color">Versions are linked to a Body Variant.</b><br />
+                                Go to <b>Body Variants</b> and click a row to select it.
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-tabpanel>
+
+                <!-- CONFIGS -->
+                <p-tabpanel value="cfg">
+                    <ng-container *ngIf="selectedVer; else needVerForCfg">
+                        <div class="flex items-center justify-between mb-3">
+                            <b>Configs & Specs</b>
+                            <div class="flex items-center gap-2">
+                                <span class="text-color-secondary">Version:</span>
+                                <b>{{ selectedVer.name }}</b>
+                                <p-button label="Add" icon="pi pi-plus" severity="secondary"
+                                    (click)="openCfgDialog()" />
+                            </div>
+                        </div>
+
+                        <p-table [value]="selectedVer.configs || []" dataKey="__key">
+                            <ng-template #header>
+                                <tr>
+                                    <th>Year</th>
+                                    <th>Engine</th>
+                                    <th>Transmission</th>
+                                    <th>Drivetrain</th>
+                                    <th style="width: 10rem"></th>
+                                </tr>
+                            </ng-template>
+
+                            <ng-template #body let-c>
+                                <tr class="cursor-pointer transition-colors hover:!bg-gray-100 dark:hover:!bg-gray-800">
+                                    <td>{{ c.year || '-' }}</td>
+                                    <td>{{ c.engine?.code || c.engine }}</td>
+                                    <td>{{ c.transmission?.label || c.transmission }}</td>
+                                    <td>{{ c.drivetrain?.label || c.drivetrain }}</td>
+                                    <td class="text-right">
+                                        <p-button icon="pi pi-pencil" [rounded]="true" [outlined]="true" class="mr-2"
+                                            (click)="openCfgDialog(c); $event.stopPropagation();" />
+                                        <p-button icon="pi pi-trash" severity="danger" [rounded]="true"
+                                            [outlined]="true" (click)="removeCfg(c); $event.stopPropagation();" />
+                                    </td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+
+                        <small class="text-color-secondary" *ngIf="!(selectedVer.configs.length)"> No configs yet —
+                            click “Add”. </small>
+                    </ng-container>
+
+                    <ng-template #needVerForCfg>
+                        <div class="border rounded-lg p-4 text-color-secondary flex items-center gap-2">
+                            <i class="pi pi-info-circle"></i>
+                            <div>
+                                <b class="text-color">Configs are linked to a Version.</b><br />
+                                Go to <b>Versions</b> and click a row to select it.
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-tabpanel>
+            </p-tabs>
+        </div>
+    </ng-template>
+
+    <ng-template #footer>
+        <p-button label="Cancel" icon="pi pi-times" text (click)="closeCatalogBuilder()" />
+        <p-button label="Save (Upsert)" icon="pi pi-check" (click)="saveCatalog()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="genDialog" header="Generation" [modal]="true" [style]="{ width: '520px' }">
+    <ng-template #content>
+        <div class="flex flex-col gap-4">
+            <div>
+                <label class="block font-bold mb-2">Name*</label>
+                <input pInputText class="w-full" [(ngModel)]="genForm.name" required autofocus fluid />
+                <small class="text-red-500" *ngIf="genSubmitted && !genForm.name?.trim()">Required</small>
+            </div>
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Start*</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="genForm.startYear" [useGrouping]="false" required
+                        autofocus fluid></p-inputnumber>
+                    <small class="text-red-500" *ngIf="genSubmitted && genForm.startYear == null">Required</small>
+                </div>
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">End*</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="genForm.endYear" [useGrouping]="false" required autofocus
+                        fluid></p-inputnumber>
+                    <small class="text-red-500" *ngIf="genSubmitted && genForm.endYear == null">Required</small>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+    <ng-template #footer>
+        <p-button label="Cancel" text (click)="closeGenDialog()" />
+        <p-button label="Save" icon="pi pi-check" (click)="saveGen()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="phaseDialog" header="Phase" [modal]="true" [style]="{ width: '520px' }">
+    <ng-template #content>
+        <div class="flex flex-col gap-4">
+            <div>
+                <label class="block font-bold mb-2">Name*</label>
+                <input pInputText class="w-full" [(ngModel)]="phaseForm.name" />
+                <small class="text-red-500" *ngIf="phaseSubmitted && !phaseForm.name?.trim()">Required
+                </small>
+            </div>
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Start</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="phaseForm.startYear"
+                        [useGrouping]="false"></p-inputnumber>
+                </div>
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">End</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="phaseForm.endYear" [useGrouping]="false"></p-inputnumber>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+    <ng-template #footer>
+        <p-button label="Cancel" text (click)="phaseDialog=false" />
+        <p-button label="Save" icon="pi pi-check" (click)="savePhase()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="bvDialog" header="Body Variant" [modal]="true" [style]="{ width: '780px' }">
+    <ng-template #content>
+        <div class="flex flex-col gap-4">
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Variant name*</label>
+                    <input pInputText class="w-full" [(ngModel)]="bvForm.name" />
+                    <small class="text-red-500" *ngIf="bvSubmitted && !bvForm.name?.trim()">Required</small>
+                </div>
+                <div class="col-span-3">
+                    <label class="block font-bold mb-2">Doors*</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="bvForm.doors" [useGrouping]="false"></p-inputnumber>
+                    <small class="text-red-500" *ngIf="bvSubmitted && bvForm.doors == null">Required</small>
+                </div>
+                <div class="col-span-3">
+                    <label class="block font-bold mb-2">Body type</label>
+                    <p-autocomplete class="w-full" [(ngModel)]="bvForm.bodyType" [suggestions]="bodyTypePager.items"
+                        optionLabel="name" dataKey="id" [dropdown]="true" [forceSelection]="false" appendTo="body"
+                        (completeMethod)="bodyTypePager.search($event)">
+                        <ng-template pTemplate="footer">
+                            <div *ngIf="bodyTypePager.hasMore"
+                                class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
+                                (mouseenter)="bodyTypePager.hoverStart()" (mouseleave)="bodyTypePager.hoverEnd()">
+                                <span class="text-color-secondary">Hover to load more…</span>
+                                <span class="text-color-secondary">
+                                    {{ bodyTypePager.loading ? 'Loading…' : '(hold cursor)' }}
+                                </span>
+                            </div>
+
+                            <div *ngIf="!bodyTypePager.hasMore && bodyTypePager.items.length"
+                                class="px-3 py-2 border-t text-sm text-color-secondary">No more results.</div>
+                        </ng-template>
+                    </p-autocomplete>
+                    <small class="text-red-500"
+                        *ngIf="bvSubmitted && !pickText(bvForm.bodyType, 'name')">Required</small>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+    <ng-template #footer>
+        <p-button label="Cancel" text (click)="bvDialog=false" />
+        <p-button label="Save" icon="pi pi-check" (click)="saveBv()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="verDialog" header="Version" [modal]="true" [style]="{ width: '650px' }">
+    <ng-template #content>
+        <div class="flex flex-col gap-4">
+            <div>
+                <label class="block font-bold mb-2">Name*</label>
+                <input pInputText class="w-full" [(ngModel)]="verForm.name" />
+                <small class="text-red-500" *ngIf="verSubmitted && !verForm.name?.trim()">
+                    Required
+                </small>
+            </div>
+
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-4">
+                    <label class="block font-bold mb-2">Phase*</label>
+                    <p-select class="w-full" [options]="selectedGen?.phases || []" optionLabel="name" optionValue="name"
+                        placeholder="Choose phase" [(ngModel)]="verForm.phaseName" appendTo="body">
+                    </p-select>
+
+                    <small class="text-red-500" *ngIf="verSubmitted && !verForm.phaseName">
+                        Required
+                    </small>
+                </div>
+
+                <div class="col-span-4">
+                    <label class="block font-bold mb-2">Start</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="verForm.startYear" [useGrouping]="false"></p-inputnumber>
+                </div>
+                <div class="col-span-4">
+                    <label class="block font-bold mb-2">End</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="verForm.endYear" [useGrouping]="false"></p-inputnumber>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+    <ng-template #footer>
+        <p-button label="Cancel" text (click)="verDialog=false" />
+        <p-button label="Save" icon="pi pi-check" (click)="saveVer()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="cfgDialog" header="Config + Specs" [modal]="true" [style]="{ width: '820px' }">
+    <ng-template #content>
+        <div class="flex flex-col gap-5">
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-3">
+                    <label class="block font-bold mb-2">Year*</label>
+                    <p-inputnumber class="w-full" [(ngModel)]="cfgForm.year" [useGrouping]="false"></p-inputnumber>
+                    <small class="text-red-500" *ngIf="cfgSubmitted && cfgForm.year == null">Required</small>
+                </div>
+
+                <!-- ENGINE (pick existing or type new code) -->
+                <div class="col-span-9">
+                    <label class="block font-bold mb-2">Engine (code)*</label>
+                    <p-autocomplete class="w-full" [(ngModel)]="cfgForm.engine" [suggestions]="enginePager.items"
+                        optionLabel="code" dataKey="id" [dropdown]="true" [forceSelection]="false" appendTo="body"
+                        (completeMethod)="enginePager.search($event)" (onSelect)="onEngineSelect($event)">
+                        <ng-template pTemplate="footer">
+                            <div *ngIf="enginePager.hasMore"
+                                class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
+                                (mouseenter)="enginePager.hoverStart()" (mouseleave)="enginePager.hoverEnd()">
+                                <span class="text-color-secondary">Hover to load more…</span>
+                                <span class="text-color-secondary">
+                                    {{ enginePager.loading ? 'Loading…' : '(hold cursor)'}}</span>
+                            </div>
+                            <div *ngIf="!enginePager.hasMore && enginePager.items.length"
+                                class="px-3 py-2 border-t text-sm text-color-secondary">No more results.</div>
+                        </ng-template>
+                    </p-autocomplete>
+                    <small class="text-color-secondary"> If you type a new code, we’ll create/update the engine using
+                        the details below (if provided). </small>
+                    <small class="text-red-500"
+                        *ngIf="cfgSubmitted && !(pickObj(cfgForm.engine)?.id || pickText(cfgForm.engine,'code'))">
+                        Required
+                    </small>
+                </div>
+            </div>
+
+            <!-- ENGINE DETAILS (only used if new or if you want to update by code) -->
+            <div class="border rounded-lg p-3">
+                <div class="font-bold mb-3">Engine details</div>
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Fuel</label>
+                        <input pInputText class="w-full" [(ngModel)]="cfgForm.engineDetails.fuelType"
+                            placeholder="Petrol/Diesel" />
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Power kW</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.engineDetails.powerKw"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Power PS</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.engineDetails.powerPs"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Torque Nm</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.engineDetails.torqueNm"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-12 gap-4">
+                <!-- TRANSMISSION -->
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Transmission*</label>
+
+                    <p-autocomplete class="w-full" [(ngModel)]="cfgForm.transmission"
+                        [suggestions]="transmissionPager.items" optionLabel="label" dataKey="id" [dropdown]="true"
+                        [forceSelection]="false" appendTo="body" (completeMethod)="transmissionPager.search($event)">
+                        <ng-template pTemplate="footer">
+                            <div *ngIf="transmissionPager.hasMore"
+                                class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
+                                (mouseenter)="transmissionPager.hoverStart()"
+                                (mouseleave)="transmissionPager.hoverEnd()">
+                                <span class="text-color-secondary">Hover to load more…</span>
+                                <span class="text-color-secondary">
+                                    {{ transmissionPager.loading ? 'Loading…' : '(hold cursor)' }}</span>
+                            </div>
+                            <div *ngIf="!transmissionPager.hasMore && transmissionPager.items.length"
+                                class="px-3 py-2 border-t text-sm text-color-secondary">No more results.</div>
+                        </ng-template>
+                    </p-autocomplete>
+
+                    <small class="text-color-secondary"> Type anything to create a new transmission, or pick existing.
+                    </small>
+                    <small class="text-red-500"
+                        *ngIf="cfgSubmitted && !(pickObj(cfgForm.transmission)?.id || (typeof cfgForm.transmission === 'string' && cfgForm.transmission.trim()) || pickText(cfgForm.transmission,'label'))">
+                        Required
+                    </small>
+                </div>
+
+                <!-- DRIVETRAIN -->
+                <div class="col-span-6">
+                    <label class="block font-bold mb-2">Drivetrain*</label>
+
+                    <p-autocomplete class="w-full" [(ngModel)]="cfgForm.drivetrain"
+                        [suggestions]="drivetrainPager.items" optionLabel="label" dataKey="id" [dropdown]="true"
+                        [forceSelection]="false" appendTo="body" (completeMethod)="drivetrainPager.search($event)">
+                        <ng-template pTemplate="footer">
+                            <div *ngIf="drivetrainPager.hasMore"
+                                class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
+                                (mouseenter)="drivetrainPager.hoverStart()" (mouseleave)="drivetrainPager.hoverEnd()">
+                                <span class="text-color-secondary">Hover to load more…</span>
+                                <span class="text-color-secondary">
+                                    {{ drivetrainPager.loading ? 'Loading…' : '(hold cursor)' }}</span>
+                            </div>
+                            <div *ngIf="!drivetrainPager.hasMore && drivetrainPager.items.length"
+                                class="px-3 py-2 border-t text-sm text-color-secondary">No more results.</div>
+                        </ng-template>
+                    </p-autocomplete>
+
+                    <small class="text-color-secondary"> Type anything to create a new drivetrain, or pick existing.
+                    </small>
+                    <small class="text-red-500"
+                        *ngIf="cfgSubmitted && !(pickObj(cfgForm.drivetrain)?.id || (typeof cfgForm.drivetrain === 'string' && cfgForm.drivetrain.trim()) || pickText(cfgForm.drivetrain,'label'))">
+                        Required
+                    </small>
+                </div>
+            </div>
+
+            <p-divider />
+
+            <!-- SPEC SHEET -->
+            <div class="flex items-center justify-between">
+                <b>Specs (optional)</b>
+                <p-button label="{{ cfgForm.showSpec ? 'Hide' : 'Show' }} specs" icon="pi pi-sliders-h"
+                    severity="secondary" [outlined]="true" (click)="cfgForm.showSpec = !cfgForm.showSpec" />
+            </div>
+
+            <div *ngIf="cfgForm.showSpec" class="flex flex-col gap-4">
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">0-100</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.zeroTo100"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Top speed (km/h)</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.topSpeedKmh"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Curb weight (kg)</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.curbWeightKg"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Trunk (L)</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.trunkLiters"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Power PS override</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.powerPsOverride"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Power kW override</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.powerKwOverride"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Torque Nm override</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.torqueNmOverride"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block font-bold mb-2">Torque lb-ft override</label>
+                        <p-inputnumber class="w-full" [(ngModel)]="cfgForm.spec.torqueLbftOverride"
+                            [useGrouping]="false"></p-inputnumber>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold mb-2">Extra spec JSON (optional)</label>
+                    <textarea pTextarea class="w-full" rows="5" [(ngModel)]="cfgForm.specJson"
+                        placeholder='{"tires":"185/60 R15","brakes":"disc/drum"}'></textarea>
+                    <small class="text-color-secondary"> Must be valid JSON if provided. </small>
+                </div>
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template #footer>
+        <p-button label="Cancel" text (click)="cfgDialog=false" />
+        <p-button label="Save" icon="pi pi-check" (click)="saveCfg()" />
+    </ng-template>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: '450px' }" />
