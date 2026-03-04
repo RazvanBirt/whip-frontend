@@ -71,7 +71,7 @@ interface ExportColumn {
         TooltipModule
     ],
     templateUrl: './makes.html',
-    providers: [MessageService, ConfirmationService, RequestsService, CountryService]
+    providers: [MessageService, ConfirmationService, CountryService]
 })
 export class Makes implements OnInit {
     makeDialog: boolean = false;
