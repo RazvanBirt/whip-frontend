@@ -584,25 +584,46 @@
                 <div class="col-span-6">
                     <label class="block font-bold mb-2">Transmission*</label>
 
-                    <p-autocomplete class="w-full" [(ngModel)]="cfgForm.transmission"
-                        [suggestions]="transmissionPager.items" optionLabel="label" dataKey="id" [dropdown]="true"
-                        [forceSelection]="false" appendTo="body" (completeMethod)="transmissionPager.search($event)">
-                        <ng-template pTemplate="footer">
-                            <div *ngIf="transmissionPager.hasMore"
-                                class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
-                                (mouseenter)="transmissionPager.hoverStart()"
-                                (mouseleave)="transmissionPager.hoverEnd()">
-                                <span class="text-color-secondary">Hover to load more…</span>
-                                <span class="text-color-secondary">
-                                    {{ transmissionPager.loading ? 'Loading…' : '(hold cursor)' }}</span>
-                            </div>
-                            <div *ngIf="!transmissionPager.hasMore && transmissionPager.items.length"
-                                class="px-3 py-2 border-t text-sm text-color-secondary">No more results.</div>
-                        </ng-template>
-                    </p-autocomplete>
+                    <div class="grid grid-cols-12 gap-2">
+                        <!-- Transmission autocomplete -->
+                        <div class="col-span-8">
+                            <p-autocomplete class="w-full" [(ngModel)]="cfgForm.transmission"
+                                [suggestions]="transmissionPager.items" optionLabel="label" dataKey="id"
+                                [dropdown]="true" [forceSelection]="false" appendTo="body"
+                                (completeMethod)="transmissionPager.search($event)"
+                                (onSelect)="onTransmissionSelect($event)">
+                                <ng-template pTemplate="footer">
+                                    <div *ngIf="transmissionPager.hasMore"
+                                        class="flex items-center justify-between px-3 py-2 border-t text-sm select-none"
+                                        (mouseenter)="transmissionPager.hoverStart()"
+                                        (mouseleave)="transmissionPager.hoverEnd()">
 
-                    <small class="text-color-secondary"> Type anything to create a new transmission, or pick existing.
+                                        <span class="text-color-secondary">Hover to load more…</span>
+
+                                        <span class="text-color-secondary">
+                                            {{ transmissionPager.loading ? 'Loading…' : '(hold cursor)' }}
+                                        </span>
+                                    </div>
+
+                                    <div *ngIf="!transmissionPager.hasMore && transmissionPager.items.length"
+                                        class="px-3 py-2 border-t text-sm text-color-secondary">
+                                        No more results.
+                                    </div>
+                                </ng-template>
+                            </p-autocomplete>
+                        </div>
+
+                        <!-- Gears input -->
+                        <div class="col-span-4">
+                            <p-inputNumber class="w-full" [(ngModel)]="cfgForm.transmissionGears" [min]="1" [max]="12"
+                                [showButtons]="true" placeholder="Gears"></p-inputNumber>
+                        </div>
+                    </div>
+
+                    <small class="text-color-secondary">
+                        Type anything to create a new transmission, or pick existing.
                     </small>
+
                     <small class="text-red-500"
                         *ngIf="cfgSubmitted && !(pickObj(cfgForm.transmission)?.id || (typeof cfgForm.transmission === 'string' && cfgForm.transmission.trim()) || pickText(cfgForm.transmission,'label'))">
                         Required

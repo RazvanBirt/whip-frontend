@@ -7,7 +7,7 @@ export const authGuard = () => {
     const router = inject(Router);
 
     const logged = auth.isLoggedIn();
-    console.log('[authGuard] loggedIn =', logged);
+    // console.log('[authGuard] loggedIn =', logged);
 
     return logged ? true : router.parseUrl('/landing');
 };
@@ -17,7 +17,7 @@ export const noAuthGuard = () => {
     const router = inject(Router);
 
     const logged = auth.isLoggedIn();
-    console.log('[noAuthGuard] loggedIn =', logged);
+    // console.log('[noAuthGuard] loggedIn =', logged);
 
     return logged ? router.parseUrl('/dashboard') : true;
 };

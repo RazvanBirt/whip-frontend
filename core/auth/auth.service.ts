@@ -51,7 +51,7 @@ export class AuthService {
     }
 
     setSession(accessToken: string, refreshToken: string, user?: any) {
-        console.log('res:', accessToken, refreshToken, user)
+        // console.log('res:', accessToken, refreshToken, user)
         localStorage.setItem(this.ACCESS_KEY, accessToken);
         localStorage.setItem(this.REFRESH_KEY, refreshToken);
         localStorage.setItem(this.USER_KEY, JSON.stringify(user));

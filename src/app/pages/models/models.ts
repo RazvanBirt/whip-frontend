@@ -93,6 +93,7 @@ type CatalogConfig = {
 
     engine?: EnginePick | string;
     transmission?: TransmissionPick | string;
+    transmissionGears?: number | null;
     drivetrain?: DrivetrainPick | string;
 
     engineDetails: Partial<EnginePick>;
@@ -880,9 +881,10 @@ export class Models implements OnInit {
                             name: v.name?.trim(),
                             startYear: v.startYear ?? null,
                             endYear: v.endYear ?? null,
-                            phaseName: v.phaseName ?? null, // backend maps to phaseId
+                            phaseName: v.phaseName ?? null,
 
                             configs: (v.configs ?? []).map(cfg => {
+
                                 const engineObj = this.pickObj(cfg.engine);
                                 const engineCode = this.pickText(cfg.engine, 'code') || (typeof cfg.engine === 'string' ? cfg.engine : '');
 
@@ -890,6 +892,20 @@ export class Models implements OnInit {
                                 const driveObj = this.pickObj(cfg.drivetrain);
 
                                 const spec = this.normalizeSpec(cfg);
+
+                                // Transmission type
+                                const transType =
+                                    transObj?.type ||
+                                    (typeof cfg.transmission === 'string'
+                                        ? cfg.transmission.trim()
+                                        : '') ||
+                                    this.pickText(cfg.transmission, 'type');
+
+                                // Transmission gears
+                                const gears =
+                                    cfg.transmissionGears ??
+                                    transObj?.gears ??
+                                    undefined;
 
                                 return {
                                     id: cfg.id,
@@ -900,25 +916,28 @@ export class Models implements OnInit {
                                         : engineCode
                                             ? {
                                                 code: engineCode,
-                                                // optional details for create/upsert
                                                 ...this.stripUndef({
                                                     fuelType: cfg.engineDetails?.fuelType,
                                                     powerKw: cfg.engineDetails?.powerKw,
                                                     powerPs: cfg.engineDetails?.powerPs,
                                                     torqueNm: cfg.engineDetails?.torqueNm,
-                                                })
+                                                }),
                                             }
                                             : null,
 
                                     transmission: transObj?.id
                                         ? { id: transObj.id }
-                                        : (typeof cfg.transmission === 'string' && cfg.transmission.trim())
-                                            ? { type: cfg.transmission.trim() }
+                                        : transType
+                                            ? this.stripUndef({
+                                                type: transType,
+                                                gears,
+                                            })
                                             : null,
 
                                     drivetrain: driveObj?.id
                                         ? { id: driveObj.id }
-                                        : (typeof cfg.drivetrain === 'string' && cfg.drivetrain.trim())
+                                        : (typeof cfg.drivetrain === 'string' &&
+                                            cfg.drivetrain.trim())
                                             ? { type: cfg.drivetrain.trim() }
                                             : null,
 
@@ -1149,6 +1168,7 @@ export class Models implements OnInit {
 
         if (cfg) {
             const engineObj = (cfg.engine && typeof cfg.engine === 'object') ? cfg.engine : null;
+            const tObj = (cfg.transmission && typeof cfg.transmission === 'object') ? cfg.transmission : null;
 
             this.cfgForm = {
                 ...cfg,
@@ -1164,6 +1184,8 @@ export class Models implements OnInit {
                 spec: { ...(cfg.spec ?? {}) },
                 specJson: cfg.specJson ?? '',
                 showSpec: cfg.showSpec ?? false,
+                transmissionGears: cfg.transmissionGears ?? tObj?.gears ?? null, // ✅
+
             };
         } else {
             this.cfgForm = {
@@ -1171,6 +1193,7 @@ export class Models implements OnInit {
                 year: null,
                 engine: '',
                 transmission: '',
+                transmissionGears: null,
                 drivetrain: '',
                 engineDetails: {},
                 showSpec: false,
@@ -1352,6 +1375,11 @@ export class Models implements OnInit {
         };
 
         return p;
+    }
+
+    onTransmissionSelect(ev: any) {
+        const t = ev?.value ?? ev;
+        if (t?.gears != null) this.cfgForm.transmissionGears = t.gears;
     }
 
     makePager = this.createPager<MakePick>(
