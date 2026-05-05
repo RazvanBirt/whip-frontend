@@ -19,14 +19,13 @@ import { InputIconModule } from 'primeng/inputicon';
 import { IconFieldModule } from 'primeng/iconfield';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { RequestsService } from '../service/requests.service';
-import { AutoCompleteCompleteEvent, AutoCompleteModule } from 'primeng/autocomplete';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 import { CountryService } from '../service/country.service';
 import { FileUploadModule } from 'primeng/fileupload';
 import { TooltipModule } from 'primeng/tooltip';
 import { TableLazyLoadEvent } from 'primeng/table';
 import { DividerModule } from 'primeng/divider';
 import { TabsModule } from 'primeng/tabs';
-import { finalize } from 'rxjs/operators';
 import { ChangeDetectorRef } from '@angular/core';
 
 export interface Model {
@@ -70,8 +69,19 @@ type MakeOption =
     | { __kind: 'loadMore'; label: string }
     | { __kind: 'noMore'; label: string };
 
-type TransmissionPick = { id?: string; label?: string; type?: string; gears?: number };
-type DrivetrainPick = { id?: string; label?: string; type?: string; description?: string };
+type TransmissionPick = {
+    id?: string;
+    label?: string;
+    type?: string;
+    gears?: number | null;
+};
+
+type DrivetrainPick = {
+    id?: string;
+    label?: string;
+    type?: string;
+    description?: string;
+};
 
 type CatalogSpec = {
     fuelType?: string;
@@ -152,7 +162,6 @@ type CatalogRoot = {
 };
 
 type Pager<T> = {
-    // state
     q: string;
     page: number;
     limit: number;
@@ -160,13 +169,11 @@ type Pager<T> = {
     hasMore: boolean;
     items: T[];
 
-    // methods
     search: (ev: any) => void;
     more: () => void;
     hoverStart: () => void;
     hoverEnd: () => void;
 };
-
 
 @Component({
     selector: 'models',
@@ -200,7 +207,6 @@ type Pager<T> = {
     providers: [MessageService, ConfirmationService, RequestsService, CountryService]
 })
 export class Models implements OnInit {
-
     catalogStep: 'gen' | 'ph' | 'bv' | 'ver' | 'cfg' = 'gen';
 
     selectedGen: CatalogGeneration | null = null;
@@ -221,31 +227,12 @@ export class Models implements OnInit {
     verForm!: CatalogVersion;
     cfgForm!: CatalogConfig;
 
-    // selecting rows
-    selectGen(g: CatalogGeneration | null) {
-        this.selectedGen = g;
-        this.selectedBv = null;
-        this.selectedVer = null;
-
-        if (g) this.catalogStep = 'ph';
-    }
-
-    selectBv(bv: CatalogBodyVariant | null) {
-        this.selectedBv = bv;
-        this.selectedVer = null;
-
-        if (bv) this.catalogStep = 'ver';
-    }
-
-    selectVer(v: CatalogVersion | null) {
-        this.selectedVer = v;
-
-        if (v) this.catalogStep = 'cfg';
-    }
-
     // stable local keys for tables
     private keyCounter = 0;
-    private key() { return 'k_' + (++this.keyCounter); }
+
+    private key() {
+        return 'k_' + ++this.keyCounter;
+    }
 
     // ===== Dialog state =====
     catalogDialog = false;
@@ -263,11 +250,9 @@ export class Models implements OnInit {
     makeSuggestions: MakeOption[] = [];
     makeLoading = false;
     makeHasMore = true;
-    // Make infinite scroll state
     makePage = 1;
     makeLimit = 5;
     makeQuery = '';
-
 
     bodyTypeSuggestions: any[] = [];
     bodyTypeLoading = false;
@@ -281,13 +266,13 @@ export class Models implements OnInit {
     drivetrainSuggestions: any[] = [];
     drivetrainLoading = false;
 
-    modelDialog: boolean = false;
+    modelDialog = false;
 
     model!: Model;
     models = signal<Model[]>([]);
 
     selectedModels!: Model[] | null;
-    submitted: boolean = false;
+    submitted = false;
 
     autoValue: string[] = [];
     autoFilteredValue: string[] = [];
@@ -297,17 +282,14 @@ export class Models implements OnInit {
     @ViewChild('dt') dt!: Table;
 
     exportColumns!: ExportColumn[];
-
     cols!: Column[];
 
     totalRecords = signal<number>(0);
     loading = signal<boolean>(false);
 
-    // server-side search text
     searchText = signal<string>('');
 
     private searchTimer: any = null;
-
     private selectedImageFile: File | null = null;
 
     constructor(
@@ -315,20 +297,44 @@ export class Models implements OnInit {
         private confirmationService: ConfirmationService,
         private requestsService: RequestsService,
         private countryService: CountryService,
-        private cdr: ChangeDetectorRef,
+        private cdr: ChangeDetectorRef
     ) { }
-
-    exportCSV() {
-        this.dt.exportCSV();
-    }
 
     async ngOnInit() {
         const countries = await this.countryService.getCountries();
-        this.autoValue = countries.map(c => c.name);
+        this.autoValue = countries.map((c) => c.name);
 
-        this.requestsService.api('GET', 'models/models').subscribe(res => {
-            this.models.set(res.body?.['models'] ?? []);
+        this.requestsService.api('GET', 'models/models').subscribe((res) => {
+            const body = this.bodyData(res);
+            this.models.set(body?.models ?? []);
+            this.totalRecords.set(body?.total ?? 0);
         });
+    }
+
+    // --------------------
+    // Response helpers
+    // --------------------
+
+    private bodyData(res: any) {
+        return res?.body?.data ?? res?.body ?? res;
+    }
+
+    private rowsFrom<T = any>(res: any, key: string): T[] {
+        const body = this.bodyData(res);
+        return body?.[key] ?? [];
+    }
+
+    private totalFrom(res: any) {
+        const body = this.bodyData(res);
+        return body?.total;
+    }
+
+    // --------------------
+    // Table/list logic
+    // --------------------
+
+    exportCSV() {
+        this.dt.exportCSV();
     }
 
     loadModels(event?: TableLazyLoadEvent | { first: number; rows: number }) {
@@ -338,90 +344,113 @@ export class Models implements OnInit {
         const page = Math.floor(first / rows) + 1;
         const limit = rows;
 
-        // optional sorting support
         const sortField = (event as any)?.sortField;
         const sortOrder = (event as any)?.sortOrder === -1 ? 'desc' : 'asc';
 
-        const params: any = {
-            page,
-            limit,
-        };
-
         const s = this.searchText().trim();
-        if (s) params.search = s;
-
-        if (sortField) {
-            params.sortField = sortField;
-            params.sortOrder = sortOrder;
-        }
 
         this.loading.set(true);
 
-        this.requestsService.api('GET', 'models/models', {
-            query: {
-                page,
-                limit,
-                search: s || undefined,
-                sortField: sortField || undefined,
-                sortOrder: sortField ? sortOrder : undefined,
-            }
-        }).subscribe({
-            next: (res) => {
-                this.models.set(res.body?.['models'] ?? []);
-                this.totalRecords.set(res.body?.['total'] ?? 0);
-                this.loading.set(false);
-            },
-            error: () => {
-                this.loading.set(false);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Load failed',
-                    detail: 'Could not load models',
-                    life: 4000,
-                });
-            }
-        });
+        this.requestsService
+            .api('GET', 'models/models', {
+                query: {
+                    page,
+                    limit,
+                    search: s || undefined,
+                    sortField: sortField || undefined,
+                    sortOrder: sortField ? sortOrder : undefined
+                }
+            })
+            .subscribe({
+                next: (res) => {
+                    const body = this.bodyData(res);
+                    this.models.set(body?.models ?? []);
+                    this.totalRecords.set(body?.total ?? 0);
+                    this.loading.set(false);
+                },
+                error: () => {
+                    this.loading.set(false);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Load failed',
+                        detail: 'Could not load models',
+                        life: 4000
+                    });
+                }
+            });
     }
 
+    onGlobalFilter(event: Event) {
+        const value = (event.target as HTMLInputElement).value ?? '';
+        this.searchText.set(value);
+
+        clearTimeout(this.searchTimer);
+        this.searchTimer = setTimeout(() => {
+            this.dt.first = 0;
+            this.loadModels({ first: 0, rows: this.dt.rows });
+        }, 250);
+    }
+
+    refreshCurrentPage() {
+        this.loadModels({ first: this.dt.first ?? 0, rows: this.dt.rows ?? 5 });
+    }
+
+    // --------------------
+    // Catalog builder root
+    // --------------------
+
     openCatalogBuilder(modelId?: string) {
-        // reset UI selection state
         this.catalogStep = 'gen';
         this.selectedGen = null;
         this.selectedBv = null;
         this.selectedVer = null;
+        this.selectedCfg = null;
 
-        // NEW catalog
         if (!modelId) {
             this.catalog = this.newCatalog();
             this.catalogDialog = true;
             return;
         }
 
-        // EDIT / VIEW existing catalog
         this.loading.set(true);
 
-        this.requestsService.api('GET', `models/models/${modelId}`, {
-            query: { includeCatalog: true }
-        }).subscribe({
-            next: (res) => {
-                const m = res.body?.['model'];
+        this.requestsService
+            .api('GET', `models/models/${modelId}`, {
+                query: { includeCatalog: true }
+            })
+            .subscribe({
+                next: (res) => {
+                    const body = this.bodyData(res);
+                    const m = body?.model;
 
-                // map backend -> builder format
-                this.catalog = this.mapModelToCatalog(m);
+                    this.catalog = this.mapModelToCatalog(m);
 
-                this.catalogDialog = true;
-                this.loading.set(false);
-            },
-            error: () => {
-                this.loading.set(false);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Load failed',
-                    detail: 'Could not load model catalog',
-                    life: 4000,
-                });
-            }
-        });
+                    this.catalogDialog = true;
+                    this.loading.set(false);
+                },
+                error: () => {
+                    this.loading.set(false);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Load failed',
+                        detail: 'Could not load model catalog',
+                        life: 4000
+                    });
+                }
+            });
+    }
+
+    closeCatalogBuilder() {
+        this.catalogDialog = false;
+        this.catalogSubmitted = false;
+    }
+
+    newCatalog(): CatalogRoot {
+        return {
+            make: '',
+            model: { name: '' },
+            generations: []
+        };
     }
 
     private mapModelToCatalog(m: any): CatalogRoot {
@@ -431,124 +460,162 @@ export class Models implements OnInit {
             make: m?.make ? { id: m.make.id, name: m.make.name } : '',
             model: { id: m?.id, name: m?.name ?? '' },
 
-            generations: (m?.generations ?? []).map((g: any): CatalogGeneration => ({
-                id: g.id,
-                __key: key(),
-                name: g.name ?? '',
-                startYear: g.startYear ?? null,
-                endYear: g.endYear ?? null,
-
-                phases: (g.phases ?? []).map((ph: any): CatalogPhase => ({
-                    id: ph.id,
+            generations: (m?.generations ?? []).map(
+                (g: any): CatalogGeneration => ({
+                    id: g.id,
                     __key: key(),
-                    name: ph.name ?? '',
-                    startYear: ph.startYear ?? null,
-                    endYear: ph.endYear ?? null,
-                })),
+                    name: g.name ?? '',
+                    startYear: g.startYear ?? null,
+                    endYear: g.endYear ?? null,
 
-                bodyVariants: (g.bodyVariants ?? []).map((bv: any): CatalogBodyVariant => ({
-                    id: bv.id,
-                    __key: key(),
-                    name: bv.name ?? '',
-                    doors: bv.doors ?? null,
-                    wheelbaseMm: bv.wheelbaseMm ?? null,
-                    notes: bv.notes ?? null,
-
-                    // IMPORTANT: make it object so autocomplete (field="name") displays correctly
-                    bodyType: bv.bodyType
-                        ? { id: bv.bodyType.id, name: bv.bodyType.name }
-                        : (bv.bodyTypeId ? { id: bv.bodyTypeId, name: bv.bodyTypeName ?? '' } : ''),
-
-                    versions: (bv.versions ?? []).map((v: any): CatalogVersion => ({
-                        id: v.id,
-                        __key: key(),
-                        name: v.name ?? '',
-                        startYear: v.startYear ?? null,
-                        endYear: v.endYear ?? null,
-
-                        // IMPORTANT: your select uses optionValue="name"
-                        phaseName: v.phase?.name ?? v.phaseName ?? null,
-                        phaseId: v.phaseId ?? null,
-
-                        configs: (v.configs ?? []).map((c: any): CatalogConfig => ({
-                            id: c.id,
+                    phases: (g.phases ?? []).map(
+                        (ph: any): CatalogPhase => ({
+                            id: ph.id,
                             __key: key(),
-                            year: c.year ?? null,
+                            name: ph.name ?? '',
+                            startYear: ph.startYear ?? null,
+                            endYear: ph.endYear ?? null
+                        })
+                    ),
 
-                            // IMPORTANT: make it object so autocomplete (field="code") displays correctly
-                            engine: c.engine
-                                ? {
-                                    id: c.engine.id,
-                                    code: c.engine.code,
-                                    fuelType: c.engine.fuelType,
-                                    powerKw: c.engine.powerKw,
-                                    powerPs: c.engine.powerPs,
-                                    torqueNm: c.engine.torqueNm,
-                                    torqueLbft: c.engine.torqueLbft,
-                                }
-                                : '',
+                    bodyVariants: (g.bodyVariants ?? []).map(
+                        (bv: any): CatalogBodyVariant => ({
+                            id: bv.id,
+                            __key: key(),
+                            name: bv.name ?? '',
+                            doors: bv.doors ?? null,
+                            wheelbaseMm: bv.wheelbaseMm ?? null,
+                            notes: bv.notes ?? null,
 
-                            // IMPORTANT: make it object so autocomplete (field="label") displays correctly
-                            transmission: c.transmission
-                                ? {
-                                    id: c.transmission.id,
-                                    type: c.transmission.type,
-                                    gears: c.transmission.gears,
-                                    label:
-                                        c.transmission.label ??
-                                        `${c.transmission.type ?? ''}${c.transmission.gears ? ' • ' + c.transmission.gears + ' gears' : ''}`.trim(),
-                                }
-                                : '',
+                            bodyType: bv.bodyType
+                                ? { id: bv.bodyType.id, name: bv.bodyType.name }
+                                : bv.bodyTypeId
+                                    ? { id: bv.bodyTypeId, name: bv.bodyTypeName ?? '' }
+                                    : '',
 
-                            drivetrain: c.drivetrain
-                                ? {
-                                    id: c.drivetrain.id,
-                                    type: c.drivetrain.type,
-                                    description: c.drivetrain.description,
-                                    label: c.drivetrain.label ?? `${c.drivetrain.type ?? ''}`.trim(),
-                                }
-                                : '',
+                            versions: (bv.versions ?? []).map(
+                                (v: any): CatalogVersion => ({
+                                    id: v.id,
+                                    __key: key(),
+                                    name: v.name ?? '',
+                                    startYear: v.startYear ?? null,
+                                    endYear: v.endYear ?? null,
 
-                            engineDetails: {},
+                                    phaseName: v.phase?.name ?? v.phaseName ?? null,
+                                    phaseId: v.phaseId ?? null,
 
-                            showSpec: !!c.spec,
-                            spec: c.spec
-                                ? {
-                                    topSpeedKmh: c.spec.topSpeedKmh,
-                                    zeroTo100: c.spec.zeroTo100,
-                                    curbWeightKg: c.spec.curbWeightKg,
-                                    trunkLiters: c.spec.trunkLiters,
-                                    powerPsOverride: c.spec.powerPsOverride,
-                                    powerKwOverride: c.spec.powerKwOverride,
-                                    torqueNmOverride: c.spec.torqueNmOverride,
-                                    torqueLbftOverride: c.spec.torqueLbftOverride,
-                                    fuelType: c.spec.fuelType,
-                                }
-                                : {},
+                                    configs: (v.configs ?? []).map(
+                                        (c: any): CatalogConfig => ({
+                                            id: c.id,
+                                            __key: key(),
+                                            year: c.year ?? null,
 
-                            specJson: c.spec?.data ? JSON.stringify(c.spec.data, null, 2) : '',
-                        })),
-                    })),
-                })),
-            })),
+                                            engine: c.engine
+                                                ? {
+                                                    id: c.engine.id,
+                                                    code: c.engine.code,
+                                                    fuelType: c.engine.fuelType,
+                                                    powerKw: c.engine.powerKw,
+                                                    powerPs: c.engine.powerPs,
+                                                    torqueNm: c.engine.torqueNm,
+                                                    torqueLbft: c.engine.torqueLbft
+                                                }
+                                                : '',
+
+                                            transmission: c.transmission
+                                                ? {
+                                                    id: c.transmission.id,
+                                                    type: c.transmission.type,
+                                                    gears: c.transmission.gears,
+                                                    label:
+                                                        c.transmission.label ??
+                                                        this.transmissionLabel(c.transmission)
+                                                }
+                                                : '',
+
+                                            transmissionGears:
+                                                c.transmission?.gears ?? null,
+
+                                            drivetrain: c.drivetrain
+                                                ? {
+                                                    id: c.drivetrain.id,
+                                                    type: c.drivetrain.type,
+                                                    description:
+                                                        c.drivetrain.description,
+                                                    label:
+                                                        c.drivetrain.label ??
+                                                        this.drivetrainLabel(c.drivetrain)
+                                                }
+                                                : '',
+
+                                            engineDetails: {},
+
+                                            showSpec: !!c.spec,
+                                            spec: c.spec
+                                                ? {
+                                                    topSpeedKmh: c.spec.topSpeedKmh,
+                                                    zeroTo100: c.spec.zeroTo100,
+                                                    curbWeightKg:
+                                                        c.spec.curbWeightKg,
+                                                    trunkLiters:
+                                                        c.spec.trunkLiters,
+                                                    powerPsOverride:
+                                                        c.spec.powerPsOverride,
+                                                    powerKwOverride:
+                                                        c.spec.powerKwOverride,
+                                                    torqueNmOverride:
+                                                        c.spec.torqueNmOverride,
+                                                    torqueLbftOverride:
+                                                        c.spec.torqueLbftOverride,
+                                                    fuelType: c.spec.fuelType
+                                                }
+                                                : {},
+
+                                            specJson: c.spec?.data
+                                                ? JSON.stringify(c.spec.data, null, 2)
+                                                : ''
+                                        })
+                                    )
+                                })
+                            )
+                        })
+                    )
+                })
+            )
         };
     }
 
-    onGlobalFilter(event: Event) {
-        const value = (event.target as HTMLInputElement).value ?? '';
-        this.searchText.set(value);
+    // --------------------
+    // Selection steps
+    // --------------------
 
-        // simple debounce
-        clearTimeout(this.searchTimer);
-        this.searchTimer = setTimeout(() => {
-            this.dt.first = 0;         // reset to first page on new search
-            this.loadModels({ first: 0, rows: this.dt.rows });
-        }, 250);
+    selectGen(g: CatalogGeneration | null) {
+        this.selectedGen = g;
+        this.selectedBv = null;
+        this.selectedVer = null;
+        this.selectedCfg = null;
+
+        if (g) this.catalogStep = 'ph';
     }
 
-    refreshCurrentPage() {
-        this.loadModels({ first: this.dt.first ?? 0, rows: this.dt.rows ?? 5 });
+    selectBv(bv: CatalogBodyVariant | null) {
+        this.selectedBv = bv;
+        this.selectedVer = null;
+        this.selectedCfg = null;
+
+        if (bv) this.catalogStep = 'ver';
     }
+
+    selectVer(v: CatalogVersion | null) {
+        this.selectedVer = v;
+        this.selectedCfg = null;
+
+        if (v) this.catalogStep = 'cfg';
+    }
+
+    // --------------------
+    // Model CRUD
+    // --------------------
 
     openNew() {
         this.model = {};
@@ -572,14 +639,16 @@ export class Models implements OnInit {
                     .api('DELETE', 'models/models', { body: { ids: [model.id] } })
                     .subscribe({
                         next: () => {
-                            this.models.set(this.models().filter((val) => val.id !== model.id));
+                            this.models.set(
+                                this.models().filter((val) => val.id !== model.id)
+                            );
                             this.model = {} as any;
 
                             this.messageService.add({
                                 severity: 'success',
                                 summary: 'Successful',
                                 detail: 'Model Deleted',
-                                life: 3000,
+                                life: 3000
                             });
                         },
                         error: (err) => {
@@ -587,11 +656,11 @@ export class Models implements OnInit {
                                 severity: 'error',
                                 summary: 'Delete failed',
                                 detail: err?.message ?? 'Could not delete model',
-                                life: 4000,
+                                life: 4000
                             });
-                        },
+                        }
                     });
-            },
+            }
         });
     }
 
@@ -604,69 +673,38 @@ export class Models implements OnInit {
                 const selected = this.selectedModels ?? [];
                 if (!selected.length) return;
 
-                const ids = selected.map(m => m.id);
+                const ids = selected.map((m) => m.id);
 
-                this.requestsService.api('DELETE', 'models/models', { body: { ids } }).subscribe({
-                    next: () => {
-                        // remove from UI list
-                        this.models.set(this.models().filter(m => !ids.includes(m.id)));
+                this.requestsService
+                    .api('DELETE', 'models/models', { body: { ids } })
+                    .subscribe({
+                        next: () => {
+                            this.models.set(
+                                this.models().filter((m) => !ids.includes(m.id))
+                            );
 
-                        // clear selection + current model
-                        this.selectedModels = null;
-                        this.model = {} as any;
+                            this.selectedModels = null;
+                            this.model = {} as any;
 
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'Models Deleted',
-                            life: 3000,
-                        });
-                    },
-                    error: (err) => {
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Delete failed',
-                            detail: err?.message ?? 'Could not delete selected models',
-                            life: 4000,
-                        });
-                    },
-                });
-            },
-        });
-    }
-
-    findIndexById(id: string): number {
-        let index = -1;
-        for (let i = 0; i < this.models().length; i++) {
-            if (this.models()[i].id === id) {
-                index = i;
-                break;
+                            this.messageService.add({
+                                severity: 'success',
+                                summary: 'Successful',
+                                detail: 'Models Deleted',
+                                life: 3000
+                            });
+                        },
+                        error: (err) => {
+                            this.messageService.add({
+                                severity: 'error',
+                                summary: 'Delete failed',
+                                detail:
+                                    err?.message ?? 'Could not delete selected models',
+                                life: 4000
+                            });
+                        }
+                    });
             }
-        }
-
-        return index;
-    }
-
-    createId(): string {
-        let id = '';
-        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (var i = 0; i < 5; i++) {
-            id += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return id;
-    }
-
-    getSeverity(status: string) {
-        switch (status) {
-            case 'INSTOCK':
-                return 'success';
-            case 'LOWSTOCK':
-                return 'warn';
-            case 'OUTOFSTOCK':
-                return 'danger';
-            default:
-                return 'info';
-        }
+        });
     }
 
     async saveModel() {
@@ -674,9 +712,7 @@ export class Models implements OnInit {
 
         try {
             if (this.model.id) {
-
                 if (this.selectedImageFile) {
-                    // send multipart (image + fields)
                     const fd = new FormData();
                     fd.append('name', this.model.name || '');
                     fd.append('country', this.model.country || '');
@@ -689,11 +725,9 @@ export class Models implements OnInit {
                         })
                         .toPromise();
 
-                    this.model = res?.body?.model ?? this.model;
-                }
-
-                else {
-                    // send JSON (no image)
+                    const body = this.bodyData(res);
+                    this.model = body?.model ?? this.model;
+                } else {
                     await this.requestsService
                         .api('PATCH', 'models/models', {
                             ids: this.model.id,
@@ -704,12 +738,7 @@ export class Models implements OnInit {
                         })
                         .toPromise();
                 }
-            }
-
-
-            // CREATE
-            else {
-                // If image exists: create + upload in one request
+            } else {
                 if (this.selectedImageFile) {
                     const fd = new FormData();
                     fd.append('name', this.model.name || '');
@@ -720,13 +749,16 @@ export class Models implements OnInit {
                         .api('POST', 'models/models/with-image', { body: fd })
                         .toPromise();
 
-                    const created = createRes?.body?.model;
-                    if (created) this.model = created; // optional
+                    const body = this.bodyData(createRes);
+                    const created = body?.model;
+                    if (created) this.model = created;
                 } else {
-                    // No image: your existing JSON create endpoint
                     await this.requestsService
                         .api('POST', 'models/models', {
-                            body: { name: this.model.name, country: this.model.country }
+                            body: {
+                                name: this.model.name,
+                                country: this.model.country
+                            }
                         })
                         .toPromise();
                 }
@@ -735,106 +767,71 @@ export class Models implements OnInit {
             this.messageService.add({
                 severity: 'success',
                 summary: 'Saved',
-                detail: 'Model saved successfully',
+                detail: 'Model saved successfully'
             });
 
             this.modelDialog = false;
             this.selectedImageFile = null;
 
-            // refresh
             this.refreshCurrentPage();
         } catch (e: any) {
             console.error(e);
             this.messageService.add({
                 severity: 'error',
                 summary: 'Save failed',
-                detail: e?.message || 'Something went wrong',
+                detail: e?.message || 'Something went wrong'
             });
         }
     }
 
-    closeCatalogBuilder() {
-        this.catalogDialog = false;
-        this.catalogSubmitted = false;
-    }
-
-    newCatalog(): CatalogRoot {
-        return {
-            make: '',
-            model: { name: '' },
-            generations: [],
-        };
-    }
-
-    addGeneration() {
-        this.catalog.generations.push({
-            __key: this.key(),
-            name: '',
-            startYear: null,
-            endYear: null,
-            phases: [],
-            bodyVariants: [],
-        });
-    }
-
-    removeGeneration(i: number) {
-        this.catalog.generations.splice(i, 1);
-    }
-
-    onEngineSelect(e: any) {
-        const eng = e?.value;
-        if (!eng) return;
-
-        // Fill the "Engine details" section automatically
-        this.cfgForm.engineDetails = {
-            fuelType: eng.fuelType ?? null,
-            powerKw: eng.powerKw ?? null,
-            powerPs: eng.powerPs ?? null,
-            torqueNm: eng.torqueNm ?? null,
-            torqueLbft: eng.torqueLbft ?? null,
-        };
-    }
+    // --------------------
+    // Catalog save
+    // --------------------
 
     async saveCatalog() {
         this.catalogSubmitted = true;
 
-        // minimal validation
         const makeName = this.pickText(this.catalog.make, 'name');
+
         if (!makeName) {
-            this.messageService.add({ severity: 'warn', summary: 'Missing', detail: 'Make is required' });
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'Missing',
+                detail: 'Make is required'
+            });
             return;
         }
+
         if (!this.catalog.model?.name?.trim()) {
-            this.messageService.add({ severity: 'warn', summary: 'Missing', detail: 'Model name is required' });
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'Missing',
+                detail: 'Model name is required'
+            });
             return;
         }
 
         try {
             const payload = this.toUpsertPayload(this.catalog);
 
-            // 👇 adjust this path to your real upsert endpoint
-            // e.g. POST catalog/models/full-upsert
-            const res: any = await this.requestsService
+            await this.requestsService
                 .api('POST', 'models/catalog/models/full', { body: payload })
                 .toPromise();
 
             this.messageService.add({
                 severity: 'success',
                 summary: 'Saved',
-                detail: 'Catalog upsert completed',
+                detail: 'Catalog upsert completed'
             });
 
             this.catalogDialog = false;
             this.catalogSubmitted = false;
-
-            // optional: refresh list page if needed
-            // this.refreshCurrentPage();
         } catch (e: any) {
             console.error(e);
             this.messageService.add({
                 severity: 'error',
                 summary: 'Save failed',
-                detail: e?.message || 'Something went wrong',
+                detail: e?.message || 'Something went wrong'
             });
         }
     }
@@ -844,25 +841,27 @@ export class Models implements OnInit {
         const makeName = this.pickText(cat.make, 'name');
 
         return {
-            make: makeObj?.id ? { id: makeObj.id, name: makeObj.name } : { name: makeName },
+            make: makeObj?.id
+                ? { id: makeObj.id, name: makeObj.name }
+                : { name: makeName },
             model: {
                 id: cat.model.id,
-                name: cat.model.name?.trim(),
+                name: cat.model.name?.trim()
             },
-            generations: (cat.generations ?? []).map(gen => ({
+            generations: (cat.generations ?? []).map((gen) => ({
                 id: gen.id,
                 name: gen.name?.trim(),
                 startYear: gen.startYear ?? null,
                 endYear: gen.endYear ?? null,
 
-                phases: (gen.phases ?? []).map(ph => ({
+                phases: (gen.phases ?? []).map((ph) => ({
                     id: ph.id,
                     name: ph.name?.trim(),
                     startYear: ph.startYear ?? null,
-                    endYear: ph.endYear ?? null,
+                    endYear: ph.endYear ?? null
                 })),
 
-                bodyVariants: (gen.bodyVariants ?? []).map(bv => {
+                bodyVariants: (gen.bodyVariants ?? []).map((bv) => {
                     const btObj = this.pickObj(bv.bodyType);
                     const btName = this.pickText(bv.bodyType, 'name');
 
@@ -873,27 +872,30 @@ export class Models implements OnInit {
                         wheelbaseMm: bv.wheelbaseMm ?? null,
                         notes: bv.notes ?? null,
 
-                        // server expects bodyType {name} (or id)
-                        bodyType: btObj?.id ? { id: btObj.id, name: btObj.name } : { name: btName },
+                        bodyType: btObj?.id
+                            ? { id: btObj.id, name: btObj.name }
+                            : { name: btName },
 
-                        versions: (bv.versions ?? []).map(v => ({
+                        versions: (bv.versions ?? []).map((v) => ({
                             id: v.id,
                             name: v.name?.trim(),
                             startYear: v.startYear ?? null,
                             endYear: v.endYear ?? null,
                             phaseName: v.phaseName ?? null,
 
-                            configs: (v.configs ?? []).map(cfg => {
-
+                            configs: (v.configs ?? []).map((cfg) => {
                                 const engineObj = this.pickObj(cfg.engine);
-                                const engineCode = this.pickText(cfg.engine, 'code') || (typeof cfg.engine === 'string' ? cfg.engine : '');
+                                const engineCode =
+                                    this.pickText(cfg.engine, 'code') ||
+                                    (typeof cfg.engine === 'string'
+                                        ? cfg.engine.trim()
+                                        : '');
 
                                 const transObj = this.pickObj(cfg.transmission);
                                 const driveObj = this.pickObj(cfg.drivetrain);
 
                                 const spec = this.normalizeSpec(cfg);
 
-                                // Transmission type
                                 const transType =
                                     transObj?.type ||
                                     (typeof cfg.transmission === 'string'
@@ -901,11 +903,17 @@ export class Models implements OnInit {
                                         : '') ||
                                     this.pickText(cfg.transmission, 'type');
 
-                                // Transmission gears
                                 const gears =
                                     cfg.transmissionGears ??
                                     transObj?.gears ??
-                                    undefined;
+                                    null;
+
+                                const drivetrainType =
+                                    driveObj?.type ||
+                                    (typeof cfg.drivetrain === 'string'
+                                        ? cfg.drivetrain.trim()
+                                        : '') ||
+                                    this.pickText(cfg.drivetrain, 'type');
 
                                 return {
                                     id: cfg.id,
@@ -917,41 +925,70 @@ export class Models implements OnInit {
                                             ? {
                                                 code: engineCode,
                                                 ...this.stripUndef({
-                                                    fuelType: cfg.engineDetails?.fuelType,
-                                                    powerKw: cfg.engineDetails?.powerKw,
-                                                    powerPs: cfg.engineDetails?.powerPs,
-                                                    torqueNm: cfg.engineDetails?.torqueNm,
-                                                }),
+                                                    fuelType:
+                                                        cfg.engineDetails?.fuelType,
+                                                    powerKw:
+                                                        cfg.engineDetails?.powerKw,
+                                                    powerPs:
+                                                        cfg.engineDetails?.powerPs,
+                                                    torqueNm:
+                                                        cfg.engineDetails?.torqueNm
+                                                })
                                             }
                                             : null,
 
+                                    /**
+                                     * Important after Prisma cleanup:
+                                     * Transmission uniqueness is type + gears.
+                                     * If an existing transmission is selected, send id.
+                                     * If free text is used, send both type and gears.
+                                     *
+                                     * gears = 0 is valid for CVT/eCVT.
+                                     */
                                     transmission: transObj?.id
                                         ? { id: transObj.id }
                                         : transType
                                             ? this.stripUndef({
                                                 type: transType,
-                                                gears,
+                                                gears
                                             })
                                             : null,
 
                                     drivetrain: driveObj?.id
                                         ? { id: driveObj.id }
-                                        : (typeof cfg.drivetrain === 'string' &&
-                                            cfg.drivetrain.trim())
-                                            ? { type: cfg.drivetrain.trim() }
+                                        : drivetrainType
+                                            ? { type: this.normalizeDrivetrainType(drivetrainType) }
                                             : null,
 
-                                    spec,
+                                    spec
                                 };
-                            }),
-                        })),
+                            })
+                        }))
                     };
-                }),
-            })),
+                })
+            }))
         };
     }
 
-    // GENERATION CRUD
+    // --------------------
+    // Generation CRUD
+    // --------------------
+
+    addGeneration() {
+        this.catalog.generations.push({
+            __key: this.key(),
+            name: '',
+            startYear: null,
+            endYear: null,
+            phases: [],
+            bodyVariants: []
+        });
+    }
+
+    removeGeneration(i: number) {
+        this.catalog.generations.splice(i, 1);
+    }
+
     openGenDialog(g?: CatalogGeneration) {
         this.genSubmitted = false;
 
@@ -963,7 +1000,7 @@ export class Models implements OnInit {
                 startYear: null,
                 endYear: null,
                 phases: [],
-                bodyVariants: [],
+                bodyVariants: []
             };
 
         this.genDialog = true;
@@ -984,14 +1021,23 @@ export class Models implements OnInit {
                 severity: 'warn',
                 summary: 'Invalid years',
                 detail: 'Start year cannot be greater than end year',
-                life: 4000,
+                life: 4000
             });
             return;
         }
 
-        const idx = this.catalog.generations.findIndex(x => x.__key === this.genForm.__key);
-        if (idx >= 0) this.catalog.generations[idx] = { ...this.catalog.generations[idx], ...this.genForm };
-        else this.catalog.generations.push(this.genForm);
+        const idx = this.catalog.generations.findIndex(
+            (x) => x.__key === this.genForm.__key
+        );
+
+        if (idx >= 0) {
+            this.catalog.generations[idx] = {
+                ...this.catalog.generations[idx],
+                ...this.genForm
+            };
+        } else {
+            this.catalog.generations.push(this.genForm);
+        }
 
         this.genDialog = false;
         this.genSubmitted = false;
@@ -1003,15 +1049,21 @@ export class Models implements OnInit {
     }
 
     removeGen(g: any) {
-        this.catalog.generations = this.catalog.generations.filter((x: any) => x.__key !== g.__key);
+        this.catalog.generations = this.catalog.generations.filter(
+            (x: any) => x.__key !== g.__key
+        );
+
         if (this.selectedGen?.__key === g.__key) this.selectGen(null);
     }
 
-    //PHASE CRUD
+    // --------------------
+    // Phase CRUD
+    // --------------------
+
     openPhaseDialog(ph?: CatalogPhase) {
         if (!this.selectedGen) return;
 
-        this.phaseSubmitted = false; // reset validation state
+        this.phaseSubmitted = false;
 
         this.phaseForm = ph
             ? { ...ph }
@@ -1022,13 +1074,22 @@ export class Models implements OnInit {
 
     savePhase() {
         if (!this.selectedGen) return;
+
         if (!this.phaseForm.name?.trim()) {
-            this.messageService.add({ severity: 'warn', summary: 'Missing', detail: 'Phase name required' });
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'Missing',
+                detail: 'Phase name required'
+            });
             return;
         }
 
         this.selectedGen.phases = this.selectedGen.phases || [];
-        const idx = this.selectedGen.phases.findIndex((x: any) => x.__key === this.phaseForm.__key);
+
+        const idx = this.selectedGen.phases.findIndex(
+            (x: any) => x.__key === this.phaseForm.__key
+        );
+
         if (idx >= 0) this.selectedGen.phases[idx] = this.phaseForm;
         else this.selectedGen.phases.push(this.phaseForm);
 
@@ -1038,10 +1099,16 @@ export class Models implements OnInit {
 
     removePhase(ph: any) {
         if (!this.selectedGen) return;
-        this.selectedGen.phases = (this.selectedGen.phases || []).filter((x: any) => x.__key !== ph.__key);
+
+        this.selectedGen.phases = (this.selectedGen.phases || []).filter(
+            (x: any) => x.__key !== ph.__key
+        );
     }
 
-    // BODY VARIANT CRUD
+    // --------------------
+    // Body Variant CRUD
+    // --------------------
+
     openBvDialog(bv?: CatalogBodyVariant) {
         if (!this.selectedGen) return;
 
@@ -1049,7 +1116,13 @@ export class Models implements OnInit {
 
         this.bvForm = bv
             ? { ...bv }
-            : { __key: this.key(), name: '', doors: null, bodyType: '', versions: [] };
+            : {
+                __key: this.key(),
+                name: '',
+                doors: null,
+                bodyType: '',
+                versions: []
+            };
 
         this.bvDialog = true;
     }
@@ -1077,16 +1150,17 @@ export class Models implements OnInit {
         this.selectedGen.bodyVariants = this.selectedGen.bodyVariants || [];
 
         const idx = this.selectedGen.bodyVariants.findIndex(
-            x => x.__key === this.bvForm.__key
+            (x) => x.__key === this.bvForm.__key
         );
 
-        if (idx >= 0)
+        if (idx >= 0) {
             this.selectedGen.bodyVariants[idx] = {
                 ...this.selectedGen.bodyVariants[idx],
                 ...this.bvForm
             };
-        else
+        } else {
             this.selectedGen.bodyVariants.push(this.bvForm);
+        }
 
         this.bvDialog = false;
         this.bvSubmitted = false;
@@ -1094,11 +1168,18 @@ export class Models implements OnInit {
 
     removeBv(bv: any) {
         if (!this.selectedGen) return;
-        this.selectedGen.bodyVariants = (this.selectedGen.bodyVariants || []).filter((x: any) => x.__key !== bv.__key);
+
+        this.selectedGen.bodyVariants = (
+            this.selectedGen.bodyVariants || []
+        ).filter((x: any) => x.__key !== bv.__key);
+
         if (this.selectedBv?.__key === bv.__key) this.selectBv(null);
     }
 
-    // VERSION CRUD
+    // --------------------
+    // Version CRUD
+    // --------------------
+
     openVerDialog(v?: CatalogVersion) {
         if (!this.selectedBv) return;
 
@@ -1139,16 +1220,17 @@ export class Models implements OnInit {
         this.selectedBv.versions = this.selectedBv.versions || [];
 
         const idx = this.selectedBv.versions.findIndex(
-            x => x.__key === this.verForm.__key
+            (x) => x.__key === this.verForm.__key
         );
 
-        if (idx >= 0)
+        if (idx >= 0) {
             this.selectedBv.versions[idx] = {
                 ...this.selectedBv.versions[idx],
                 ...this.verForm
             };
-        else
+        } else {
             this.selectedBv.versions.push(this.verForm);
+        }
 
         this.verDialog = false;
         this.verSubmitted = false;
@@ -1156,19 +1238,31 @@ export class Models implements OnInit {
 
     removeVer(v: any) {
         if (!this.selectedBv) return;
-        this.selectedBv.versions = (this.selectedBv.versions || []).filter((x: any) => x.__key !== v.__key);
+
+        this.selectedBv.versions = (this.selectedBv.versions || []).filter(
+            (x: any) => x.__key !== v.__key
+        );
+
         if (this.selectedVer?.__key === v.__key) this.selectVer(null);
     }
 
-    // CONFIG CRUD
+    // --------------------
+    // Config CRUD
+    // --------------------
+
     openCfgDialog(cfg?: CatalogConfig) {
         if (!this.selectedVer) return;
 
         this.cfgSubmitted = false;
 
         if (cfg) {
-            const engineObj = (cfg.engine && typeof cfg.engine === 'object') ? cfg.engine : null;
-            const tObj = (cfg.transmission && typeof cfg.transmission === 'object') ? cfg.transmission : null;
+            const engineObj =
+                cfg.engine && typeof cfg.engine === 'object' ? cfg.engine : null;
+
+            const tObj =
+                cfg.transmission && typeof cfg.transmission === 'object'
+                    ? cfg.transmission
+                    : null;
 
             this.cfgForm = {
                 ...cfg,
@@ -1178,14 +1272,13 @@ export class Models implements OnInit {
                         powerKw: engineObj.powerKw,
                         powerPs: engineObj.powerPs,
                         torqueNm: engineObj.torqueNm,
-                        torqueLbft: engineObj.torqueLbft,
+                        torqueLbft: engineObj.torqueLbft
                     }
                     : { ...(cfg.engineDetails ?? {}) },
                 spec: { ...(cfg.spec ?? {}) },
                 specJson: cfg.specJson ?? '',
                 showSpec: cfg.showSpec ?? false,
-                transmissionGears: cfg.transmissionGears ?? tObj?.gears ?? null, // ✅
-
+                transmissionGears: cfg.transmissionGears ?? tObj?.gears ?? null
             };
         } else {
             this.cfgForm = {
@@ -1198,7 +1291,7 @@ export class Models implements OnInit {
                 engineDetails: {},
                 showSpec: false,
                 spec: {},
-                specJson: '',
+                specJson: ''
             };
         }
 
@@ -1217,24 +1310,41 @@ export class Models implements OnInit {
         const engineOk = !!engineObj?.id || !!engineCode;
 
         const transObj = this.pickObj(this.cfgForm.transmission);
-        const transLabel = this.pickText(this.cfgForm.transmission, 'label') || (typeof this.cfgForm.transmission === 'string' ? this.cfgForm.transmission.trim() : '');
-        const transmissionOk = !!transObj?.id || !!transLabel;
+        const transText =
+            this.pickText(this.cfgForm.transmission, 'label') ||
+            this.pickText(this.cfgForm.transmission, 'type') ||
+            (typeof this.cfgForm.transmission === 'string'
+                ? this.cfgForm.transmission.trim()
+                : '');
+
+        const transmissionHasGears =
+            this.cfgForm.transmissionGears !== null &&
+            this.cfgForm.transmissionGears !== undefined;
+
+        const transmissionOk =
+            !!transObj?.id || (!!transText && transmissionHasGears);
 
         const driveObj = this.pickObj(this.cfgForm.drivetrain);
-        const driveLabel = this.pickText(this.cfgForm.drivetrain, 'label') || (typeof this.cfgForm.drivetrain === 'string' ? this.cfgForm.drivetrain.trim() : '');
-        const drivetrainOk = !!driveObj?.id || !!driveLabel;
+        const driveText =
+            this.pickText(this.cfgForm.drivetrain, 'label') ||
+            this.pickText(this.cfgForm.drivetrain, 'type') ||
+            (typeof this.cfgForm.drivetrain === 'string'
+                ? this.cfgForm.drivetrain.trim()
+                : '');
+
+        const drivetrainOk = !!driveObj?.id || !!driveText;
 
         if (!yearOk || !engineOk || !transmissionOk || !drivetrainOk) {
             this.messageService.add({
                 severity: 'warn',
                 summary: 'Missing',
-                detail: 'Year, engine, transmission and drivetrain are required.',
-                life: 3000,
+                detail:
+                    'Year, engine, transmission, transmission gears and drivetrain are required.',
+                life: 3000
             });
             return;
         }
 
-        // keep specs optional, but validate JSON if provided
         if (this.cfgForm.specJson?.trim()) {
             try {
                 JSON.parse(this.cfgForm.specJson);
@@ -1243,7 +1353,7 @@ export class Models implements OnInit {
                     severity: 'warn',
                     summary: 'Invalid JSON',
                     detail: 'Spec JSON is not valid JSON.',
-                    life: 3000,
+                    life: 3000
                 });
                 return;
             }
@@ -1251,9 +1361,18 @@ export class Models implements OnInit {
 
         this.selectedVer.configs = this.selectedVer.configs || [];
 
-        const idx = this.selectedVer.configs.findIndex(x => x.__key === this.cfgForm.__key);
-        if (idx >= 0) this.selectedVer.configs[idx] = { ...this.selectedVer.configs[idx], ...this.cfgForm };
-        else this.selectedVer.configs.push(this.cfgForm);
+        const idx = this.selectedVer.configs.findIndex(
+            (x) => x.__key === this.cfgForm.__key
+        );
+
+        if (idx >= 0) {
+            this.selectedVer.configs[idx] = {
+                ...this.selectedVer.configs[idx],
+                ...this.cfgForm
+            };
+        } else {
+            this.selectedVer.configs.push(this.cfgForm);
+        }
 
         this.cfgDialog = false;
         this.cfgSubmitted = false;
@@ -1261,30 +1380,59 @@ export class Models implements OnInit {
 
     removeCfg(cfg: any) {
         if (!this.selectedVer) return;
-        this.selectedVer.configs = (this.selectedVer.configs || []).filter((x: any) => x.__key !== cfg.__key);
+
+        this.selectedVer.configs = (this.selectedVer.configs || []).filter(
+            (x: any) => x.__key !== cfg.__key
+        );
     }
 
-    // HELPERS
+    onEngineSelect(e: any) {
+        const eng = e?.value;
+        if (!eng) return;
+
+        this.cfgForm.engineDetails = {
+            fuelType: eng.fuelType ?? null,
+            powerKw: eng.powerKw ?? null,
+            powerPs: eng.powerPs ?? null,
+            torqueNm: eng.torqueNm ?? null,
+            torqueLbft: eng.torqueLbft ?? null
+        };
+    }
+
+    onTransmissionSelect(ev: any) {
+        const t = ev?.value ?? ev;
+
+        if (t?.gears !== null && t?.gears !== undefined) {
+            this.cfgForm.transmissionGears = Number(t.gears);
+        }
+    }
+
+    // --------------------
+    // Helpers
+    // --------------------
+
     normalizeSpec(cfg: CatalogConfig) {
         const hasAny =
             cfg.specJson?.trim() ||
-            Object.values(cfg.spec ?? {}).some(v => v !== undefined && v !== null && v !== '');
+            Object.values(cfg.spec ?? {}).some(
+                (v) => v !== undefined && v !== null && v !== ''
+            );
 
         if (!hasAny) return null;
 
         let data: any = undefined;
+
         if (cfg.specJson?.trim()) {
             try {
                 data = JSON.parse(cfg.specJson);
             } catch {
-                // invalid JSON -> fail early
                 throw new Error('Invalid JSON in spec JSON field');
             }
         }
 
         return this.stripUndef({
             ...cfg.spec,
-            data: data ?? cfg.spec?.data,
+            data: data ?? cfg.spec?.data
         });
     }
 
@@ -1301,12 +1449,103 @@ export class Models implements OnInit {
 
     stripUndef<T extends Record<string, any>>(obj: T): T {
         const out: any = {};
-        for (const [k, v] of Object.entries(obj)) if (v !== undefined) out[k] = v;
+
+        for (const [k, v] of Object.entries(obj)) {
+            if (v !== undefined) out[k] = v;
+        }
+
         return out;
     }
 
+    private transmissionLabel(t: any) {
+        if (!t) return '';
+
+        const type = t.type ?? '';
+
+        if (t.gears === null || t.gears === undefined) {
+            return type;
+        }
+
+        const gears = Number(t.gears);
+
+        if (gears <= 0) {
+            return type;
+        }
+
+        return `${type} • ${gears} gears`;
+    }
+
+    private drivetrainLabel(d: any) {
+        if (!d) return '';
+
+        return `${d.type ?? 'Drivetrain'}${d.description ? ' • ' + d.description : ''}`;
+    }
+
+    /**
+     * Keep drivetrain catalog simple after schema cleanup.
+     * These aliases may come from old data, imports, or pasted seed content.
+     */
+    private normalizeDrivetrainType(type: string) {
+        switch (type) {
+            case 'AWD_quattro':
+            case 'AWD_xDrive':
+            case 'AWD_4Matic':
+            case 'AWD_Haldex':
+            case 'AWD_Performance':
+                return 'AWD';
+
+            case 'RWD_Performance':
+                return 'RWD';
+
+            default:
+                return type;
+        }
+    }
+
+    findIndexById(id: string): number {
+        let index = -1;
+
+        for (let i = 0; i < this.models().length; i++) {
+            if (this.models()[i].id === id) {
+                index = i;
+                break;
+            }
+        }
+
+        return index;
+    }
+
+    createId(): string {
+        let id = '';
+        const chars =
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+        for (let i = 0; i < 5; i++) {
+            id += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        return id;
+    }
+
+    getSeverity(status: string) {
+        switch (status) {
+            case 'INSTOCK':
+                return 'success';
+            case 'LOWSTOCK':
+                return 'warn';
+            case 'OUTOFSTOCK':
+                return 'danger';
+            default:
+                return 'info';
+        }
+    }
+
+    // --------------------
+    // Generic pagers
+    // --------------------
+
     createPager<T>(
-        fetchFn: (q: string, page: number, limit: number) => any, // Observable
+        fetchFn: (q: string, page: number, limit: number) => any,
         mapRows: (res: any) => T[],
         mapTotal?: (res: any) => number | undefined,
         limit = 20
@@ -1326,7 +1565,7 @@ export class Models implements OnInit {
                 p.page = 1;
                 p.items = [];
                 p.hasMore = true;
-                p.more(); // load first page
+                p.more();
             },
 
             more: () => {
@@ -1341,6 +1580,7 @@ export class Models implements OnInit {
                         p.items = [...p.items, ...rows];
 
                         const total = mapTotal?.(res);
+
                         if (typeof total === 'number') {
                             p.hasMore = p.items.length < total;
                         } else {
@@ -1354,14 +1594,14 @@ export class Models implements OnInit {
                     },
                     complete: () => {
                         p.loading = false;
-                        // keep this because your RequestsService sometimes updates outside Angular
                         this.cdr.detectChanges();
-                    },
+                    }
                 });
             },
 
             hoverStart: () => {
                 if (hoverTimer) return;
+
                 hoverTimer = setTimeout(() => {
                     hoverTimer = null;
                     p.more();
@@ -1371,68 +1611,74 @@ export class Models implements OnInit {
             hoverEnd: () => {
                 clearTimeout(hoverTimer);
                 hoverTimer = null;
-            },
+            }
         };
 
         return p;
     }
 
-    onTransmissionSelect(ev: any) {
-        const t = ev?.value ?? ev;
-        if (t?.gears != null) this.cfgForm.transmissionGears = t.gears;
-    }
-
     makePager = this.createPager<MakePick>(
-        (q, page, limit) => this.requestsService.api('GET', 'makes/makes', { query: { search: q, page, limit } }),
-        (res) => (res.body?.['makes'] ?? []).map((m: any) => ({ id: m.id, name: m.name })),
-        (res) => res.body?.['total'],
+        (q, page, limit) =>
+            this.requestsService.api('GET', 'makes/makes', {
+                query: { search: q, page, limit }
+            }),
+        (res) =>
+            this.rowsFrom<any>(res, 'makes').map((m: any) => ({
+                id: m.id,
+                name: m.name
+            })),
+        (res) => this.totalFrom(res),
         10
     );
 
     drivetrainPager = this.createPager<any>(
-        (q, page, limit) => this.requestsService.api('GET', 'drivetrains/drivetrains', { query: { search: q, page, limit } }),
-        (res) => (res.body?.['drivetrains'] ?? []).map((d: any) => ({
-            ...d,
-            label: d.label ?? `${d.type ?? 'Drivetrain'}${d.description ? ' • ' + d.description : ''}`,
-        })),
-        (res) => res.body?.['total'],
+        (q, page, limit) =>
+            this.requestsService.api('GET', 'drivetrains/drivetrains', {
+                query: { search: q, page, limit }
+            }),
+        (res) =>
+            this.rowsFrom<any>(res, 'drivetrains').map((d: any) => ({
+                ...d,
+                label: d.label ?? this.drivetrainLabel(d)
+            })),
+        (res) => this.totalFrom(res),
         10
     );
 
     bodyTypePager = this.createPager<any>(
         (q, page, limit) =>
             this.requestsService.api('GET', 'body-types/body-types', {
-                query: { search: q, page, limit },
+                query: { search: q, page, limit }
             }),
-        (res) => res.body?.['bodyTypes'] ?? [],
-        (res) => res.body?.['total'], // if your backend doesn't return total, it's fine
+        (res) => this.rowsFrom<any>(res, 'bodyTypes'),
+        (res) => this.totalFrom(res),
         10
     );
 
     enginePager = this.createPager<EnginePick>(
         (q, page, limit) =>
             this.requestsService.api('GET', 'engines/engines', {
-                query: { search: q, page, limit },
+                query: { search: q, page, limit }
             }),
-        (res) => res.body?.['engines'] ?? [],
-        (res) => res.body?.['total'],
+        (res) => this.rowsFrom<EnginePick>(res, 'engines'),
+        (res) => this.totalFrom(res),
         10
     );
 
     transmissionPager = this.createPager<any>(
         (q, page, limit) =>
             this.requestsService.api('GET', 'transmissions/transmissions', {
-                query: { search: q, page, limit },
+                query: { search: q, page, limit }
             }),
         (res) => {
-            const list = res.body?.['transmissions'] ?? [];
+            const list = this.rowsFrom<any>(res, 'transmissions');
+
             return list.map((t: any) => ({
                 ...t,
-                label: t.label ?? `${t.type ?? 'Transmission'}${t.gears ? ' • ' + t.gears + ' gears' : ''}`,
+                label: t.label ?? this.transmissionLabel(t)
             }));
         },
-        (res) => res.body?.['total'],
+        (res) => this.totalFrom(res),
         10
     );
-
 }

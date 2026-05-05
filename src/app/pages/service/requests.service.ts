@@ -1,6 +1,7 @@
 import {
     HttpClient,
     HttpErrorResponse,
+    HttpHeaders,
     HttpParams,
     HttpResponse,
 } from '@angular/common/http';
@@ -85,6 +86,12 @@ export class RequestsService {
         const idsPart = this.joinIds(options?.ids);
         const url = `${this.BASE_URL}/${ep}${idsPart}`;
 
+        const token = localStorage.getItem('access_token');
+
+        const headers = token
+            ? new HttpHeaders({ Authorization: `Bearer ${token}` })
+            : undefined;
+
         // console.log('Request URL:', url);
 
         const params = method === 'GET' ? this.buildParams(options?.query) : undefined;
@@ -96,6 +103,7 @@ export class RequestsService {
                 observe: 'response',
                 params,
                 body,
+                headers,
             })
             .pipe(catchError(handleError));
     }
