@@ -28,8 +28,8 @@
         <button pButton type="button" icon="pi pi-plus" label="Add first car" (click)="openAddCarDialog()"></button>
     </div>
     } @else {
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        @for (car of cars(); track car.id) {
+    <!-- <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"> -->
+    <!-- @for (car of cars(); track car.id) {
         <p-card>
             <ng-template pTemplate="title">
                 <div class="flex items-start justify-between gap-3">
@@ -68,8 +68,48 @@
                     (click)="deleteCar(car)"></button>
             </div>
         </p-card>
+
+
+        } -->
+
+    <div class="garage-grid">
+        @for (car of cars(); track car.id) {
+        <a class="car-card-link" [routerLink]="['/pages/my-garage', car.id]">
+            <p-card>
+                <ng-template pTemplate="header">
+                    <div class="car-card-hero">
+                        <i class="pi pi-car"></i>
+                    </div>
+                </ng-template>
+
+                <div class="car-card-body">
+                    <div class="car-title-row">
+                        <div>
+                            <h2>{{ car.nickname }}</h2>
+                            <!-- <p>{{ car.year }} {{ car.make }} {{ car.model }}</p> -->
+                        </div>
+
+                        @if (car.color) {
+                        <p-tag [value]="car.color"></p-tag>
+                        }
+                    </div>
+
+                    <div class="car-meta">
+                        <span>
+                            <strong>{{ car.mileageKm| number }}</strong>
+                            miles
+                        </span>
+                        <span>{{ car.licensePlate }}</span>
+                    </div>
+
+                    <button pButton label="Open dashboard" icon="pi pi-arrow-right" iconPos="right"
+                        class="w-full"></button>
+                </div>
+            </p-card>
+        </a>
         }
     </div>
+    <!-- </div> -->
     }
 </div>
 

@@ -1,0 +1,184 @@
+<div class="card">
+
+    <div class="flex items-center justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold mb-1">My Garage</h1>
+            <p class="text-surface-500 m-0">
+                Your saved real-life cars.
+            </p>
+        </div>
+
+        <!-- <button pButton type="button" icon="pi pi-plus" label="Add car" (click)="openAddCarDialog()"></button> -->
+    </div>
+
+    <div class="top-cards">
+        <p-card>
+            <div class="card-heading">
+                <div>
+                    <p class="eyebrow">Basic data</p>
+                    <h2>{{ car().nickname }}</h2>
+                </div>
+                <i class="pi pi-id-card card-icon"></i>
+            </div>
+
+            <div class="data-list">
+                <div>
+                    <span>Mileage</span>
+                    <strong>{{ car().mileage | number }} mi</strong>
+                </div>
+                <div>
+                    <span>Color</span>
+                    <strong>{{ car().color }}</strong>
+                </div>
+                <div>
+                    <span>Plate</span>
+                    <strong>{{ car().plate }}</strong>
+                </div>
+                <div>
+                    <span>VIN</span>
+                    <strong>{{ car().vin }}</strong>
+                </div>
+                <div>
+                    <span>Purchased</span>
+                    <strong>{{ car().purchased }}</strong>
+                </div>
+            </div>
+        </p-card>
+
+        <p-card styleClass="clickable-card">
+            <div class="card-heading">
+                <div>
+                    <p class="eyebrow">Specs</p>
+                    <h2>{{ specsExpanded() ? 'Detailed specs' : 'Common specs' }}</h2>
+                </div>
+                <i class="pi pi-cog card-icon"></i>
+            </div>
+
+            <div class="data-list">
+                <div>
+                    <span>Engine</span>
+                    <strong>{{ car().specs.engine }}</strong>
+                </div>
+                <div>
+                    <span>Power</span>
+                    <strong>{{ car().specs.power }}</strong>
+                </div>
+                <div>
+                    <span>Transmission</span>
+                    <strong>{{ car().specs.transmission }}</strong>
+                </div>
+                <div>
+                    <span>Drivetrain</span>
+                    <strong>{{ car().specs.drivetrain }}</strong>
+                </div>
+
+                @if (specsExpanded()) {
+                <div>
+                    <span>Torque</span>
+                    <strong>{{ car().specs.torque }}</strong>
+                </div>
+                <div>
+                    <span>Fuel type</span>
+                    <strong>{{ car().specs.fuelType }}</strong>
+                </div>
+                <div>
+                    <span>Body type</span>
+                    <strong>{{ car().specs.bodyType }}</strong>
+                </div>
+                <div>
+                    <span>Doors / Seats</span>
+                    <strong>{{ car().specs.doors }} / {{ car().specs.seats }}</strong>
+                </div>
+                <div>
+                    <span>Weight</span>
+                    <strong>{{ car().specs.weight }}</strong>
+                </div>
+                <div>
+                    <span>0-60 mph</span>
+                    <strong>{{ car().specs.acceleration }}</strong>
+                </div>
+                <div>
+                    <span>Top speed</span>
+                    <strong>{{ car().specs.topSpeed }}</strong>
+                </div>
+                <div>
+                    <span>Tank</span>
+                    <strong>{{ car().specs.tankCapacity }}</strong>
+                </div>
+                <div>
+                    <span>Emissions</span>
+                    <strong>{{ car().specs.emissions }}</strong>
+                </div>
+                }
+            </div>
+
+            <button pButton type="button" class="w-full specs-button"
+                [label]="specsExpanded() ? 'Show less' : 'View full specs'"
+                [icon]="specsExpanded() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" iconPos="right"
+                (click)="toggleSpecs()"></button>
+        </p-card>
+
+        <p-card>
+            <div class="card-heading">
+                <div>
+                    <p class="eyebrow">Fuel & trips</p>
+                    <h2>{{ car().fuel.avgConsumption }} mpg avg</h2>
+                </div>
+                <i class="pi pi-chart-line card-icon"></i>
+            </div>
+
+            <div class="metric-grid">
+                <div>
+                    <span>Best</span>
+                    <strong>{{ car().fuel.bestConsumption }} mpg</strong>
+                </div>
+                <div>
+                    <span>Worst</span>
+                    <strong>{{ car().fuel.worstConsumption }} mpg</strong>
+                </div>
+                <div>
+                    <span>Trips</span>
+                    <strong>{{ car().fuel.totalTrips }}</strong>
+                </div>
+                <div>
+                    <span>Distance</span>
+                    <strong>{{ car().fuel.totalDistance | number }} mi</strong>
+                </div>
+            </div>
+
+            <div class="fuel-cost">
+                <span>Total fuel cost</span>
+                <strong>£{{ car().fuel.totalFuelCost | number }}</strong>
+            </div>
+        </p-card>
+    </div>
+
+    <div class="graphs-grid">
+        <p-card header="Fuel consumption trend">
+            <p-chart type="line" [data]="fuelChartData()" [options]="chartOptions"></p-chart>
+        </p-card>
+
+        <p-card header="Monthly trip distance">
+            <p-chart type="bar" [data]="distanceChartData()" [options]="chartOptions"></p-chart>
+        </p-card>
+    </div>
+
+    <p-card header="Recent trips">
+        <div class="trips-list">
+            @for (trip of car().trips; track trip.date + trip.name) {
+            <div class="trip-row">
+                <div>
+                    <strong>{{ trip.name }}</strong>
+                    <span>{{ trip.date }}</span>
+                </div>
+
+                <div class="trip-stats">
+                    <span>{{ trip.distance }} mi</span>
+                    <span>{{ trip.avgConsumption }} mpg</span>
+                    <span>£{{ trip.fuelCost }}</span>
+                </div>
+            </div>
+            }
+        </div>
+    </p-card>
+</div>
