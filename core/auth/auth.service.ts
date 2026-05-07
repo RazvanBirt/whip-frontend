@@ -70,7 +70,7 @@ export class AuthService {
             map((res) => res.body),
             map((body) => {
                 const result = body?.data ?? body;
-                if (!result?.success) throw result;       // goes to error handler in component
+                if (!result?.success) throw result;
                 this.setSession(result.accessToken, result.refreshToken, result.user);
                 return result;
             })

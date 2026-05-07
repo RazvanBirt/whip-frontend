@@ -1,55 +1,117 @@
+<p-toast />
+
 <div class="card">
-
-    <div class="flex items-center justify-between mb-6 gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold mb-1">My Garage</h1>
-            <p class="text-surface-500 m-0">
-                Your saved real-life cars.
-            </p>
-        </div>
-
-        <!-- <button pButton type="button" icon="pi pi-plus" label="Add car" (click)="openAddCarDialog()"></button> -->
-    </div>
-
+    @if (car(); as car) {
     <div class="top-cards">
         <p-card>
-            <div class="card-heading">
-                <div>
-                    <p class="eyebrow">Basic data</p>
-                    <h2>{{ car().nickname }}</h2>
-                </div>
-                <i class="pi pi-id-card card-icon"></i>
-            </div>
+            <div class="basic-card">
+                <div class="card-heading">
+                    <div>
+                        <p class="eyebrow">Basic data</p>
 
-            <div class="data-list">
-                <div>
-                    <span>Mileage</span>
-                    <strong>{{ car().mileage | number }} mi</strong>
+                        @if (editingField() === 'nickname') {
+                        <input #nicknameInput type="text" [value]="basicDraft().nickname"
+                            (input)="updateNickname(nicknameInput.value)" (blur)="stopEditing()"
+                            (keydown.enter)="stopEditing()" (keydown.escape)="stopEditing()" autofocus
+                            class="inline-edit title-edit" />
+                        } @else {
+                        <h2 class="editable-text" title="Double click to edit" (dblclick)="editField('nickname')">
+                            {{ basicDraft().nickname }}
+                        </h2>
+                        }
+                    </div>
+
+                    <div class="card-heading-action">
+                        @if (basicDirty()) {
+                        <div class="basic-actions">
+                            <button type="button" class="basic-action-btn discard" title="Discard changes"
+                                aria-label="Discard changes" (click)="discardBasicChanges()">
+                                <i class="pi pi-times"></i>
+                            </button>
+
+                            <button type="button" class="basic-action-btn save" title="Save changes"
+                                aria-label="Save changes" (click)="saveBasicChanges()">
+                                <i class="pi pi-check"></i>
+                            </button>
+                        </div>
+                        } @else {
+                        <i class="pi pi-id-card card-icon"></i>
+                        }
+                    </div>
                 </div>
-                <div>
-                    <span>Color</span>
-                    <strong>{{ car().color }}</strong>
-                </div>
-                <div>
-                    <span>Plate</span>
-                    <strong>{{ car().plate }}</strong>
-                </div>
-                <div>
-                    <span>VIN</span>
-                    <strong>{{ car().vin }}</strong>
-                </div>
-                <div>
-                    <span>Purchased</span>
-                    <strong>{{ car().purchased }}</strong>
+
+                <div class="data-list">
+                    <div>
+                        <span>Mileage</span>
+
+                        @if (editingField() === 'mileageKm') {
+                        <input #mileageInput type="number" [value]="basicDraft().mileageKm ?? ''"
+                            (input)="updateMileageKm(mileageInput.value)" (blur)="stopEditing()"
+                            (keydown.enter)="stopEditing()" (keydown.escape)="stopEditing()" autofocus
+                            class="inline-edit" />
+                        } @else {
+                        <strong class="editable-text" title="Double click to edit" (dblclick)="editField('mileageKm')">
+                            {{ basicDraft().mileageKm | number }} km
+                        </strong>
+                        }
+                    </div>
+
+                    <div>
+                        <span>Color</span>
+
+                        @if (editingField() === 'color') {
+                        <input #colorInput type="text" [value]="basicDraft().color"
+                            (input)="updateColor(colorInput.value)" (blur)="stopEditing()"
+                            (keydown.enter)="stopEditing()" (keydown.escape)="stopEditing()" autofocus
+                            class="inline-edit" />
+                        } @else {
+                        <strong class="editable-text" title="Double click to edit" (dblclick)="editField('color')">
+                            {{ basicDraft().color || '--' }}
+                        </strong>
+                        }
+                    </div>
+
+                    <div>
+                        <span>Plate</span>
+
+                        @if (editingField() === 'licensePlate') {
+                        <input #plateInput type="text" [value]="basicDraft().licensePlate"
+                            (input)="updateLicensePlate(plateInput.value)" (blur)="stopEditing()"
+                            (keydown.enter)="stopEditing()" (keydown.escape)="stopEditing()" autofocus
+                            class="inline-edit" />
+                        } @else {
+                        <strong class="editable-text" title="Double click to edit"
+                            (dblclick)="editField('licensePlate')">
+                            {{ basicDraft().licensePlate || '--' }}
+                        </strong>
+                        }
+                    </div>
+
+                    <div>
+                        <span>VIN</span>
+
+                        @if (editingField() === 'vin') {
+                        <input #vinInput type="text" [value]="basicDraft().vin" (input)="updateVin(vinInput.value)"
+                            (blur)="stopEditing()" (keydown.enter)="stopEditing()" (keydown.escape)="stopEditing()"
+                            autofocus class="inline-edit vin-edit" />
+                        } @else {
+                        <strong class="editable-text" title="Double click to edit" (dblclick)="editField('vin')">
+                            {{ basicDraft().vin || '--' }}
+                        </strong>
+                        }
+                    </div>
                 </div>
             </div>
         </p-card>
 
-        <p-card styleClass="clickable-card">
+        <p-card>
             <div class="card-heading">
                 <div>
                     <p class="eyebrow">Specs</p>
-                    <h2>{{ specsExpanded() ? 'Detailed specs' : 'Common specs' }}</h2>
+                    <h2>
+                        {{ car.versionConfig?.version?.bodyVariant?.generation?.model?.make?.name }}
+                        {{ car.versionConfig?.version?.bodyVariant?.generation?.model?.name }}
+                    </h2>
                 </div>
                 <i class="pi pi-cog card-icon"></i>
             </div>
@@ -57,72 +119,46 @@
             <div class="data-list">
                 <div>
                     <span>Engine</span>
-                    <strong>{{ car().specs.engine }}</strong>
+                    <strong>
+                        {{ car.versionConfig?.version?.name }}
+                    </strong>
                 </div>
+
                 <div>
                     <span>Power</span>
-                    <strong>{{ car().specs.power }}</strong>
+                    <strong>
+                        {{ car.versionConfig?.engine?.powerPs }} PS /
+                        {{ car.versionConfig?.engine?.powerKw }} kW
+                    </strong>
                 </div>
+
                 <div>
                     <span>Transmission</span>
-                    <strong>{{ car().specs.transmission }}</strong>
+                    <strong>
+                        {{ car.versionConfig?.transmission?.type }}
+                        ·
+                        {{ car.versionConfig?.transmission?.gears }} gears
+                    </strong>
                 </div>
+
                 <div>
                     <span>Drivetrain</span>
-                    <strong>{{ car().specs.drivetrain }}</strong>
+                    <strong>
+                        {{ car.versionConfig?.drivetrain?.type }}
+                    </strong>
                 </div>
-
-                @if (specsExpanded()) {
-                <div>
-                    <span>Torque</span>
-                    <strong>{{ car().specs.torque }}</strong>
-                </div>
-                <div>
-                    <span>Fuel type</span>
-                    <strong>{{ car().specs.fuelType }}</strong>
-                </div>
-                <div>
-                    <span>Body type</span>
-                    <strong>{{ car().specs.bodyType }}</strong>
-                </div>
-                <div>
-                    <span>Doors / Seats</span>
-                    <strong>{{ car().specs.doors }} / {{ car().specs.seats }}</strong>
-                </div>
-                <div>
-                    <span>Weight</span>
-                    <strong>{{ car().specs.weight }}</strong>
-                </div>
-                <div>
-                    <span>0-60 mph</span>
-                    <strong>{{ car().specs.acceleration }}</strong>
-                </div>
-                <div>
-                    <span>Top speed</span>
-                    <strong>{{ car().specs.topSpeed }}</strong>
-                </div>
-                <div>
-                    <span>Tank</span>
-                    <strong>{{ car().specs.tankCapacity }}</strong>
-                </div>
-                <div>
-                    <span>Emissions</span>
-                    <strong>{{ car().specs.emissions }}</strong>
-                </div>
-                }
             </div>
 
-            <button pButton type="button" class="w-full specs-button"
-                [label]="specsExpanded() ? 'Show less' : 'View full specs'"
-                [icon]="specsExpanded() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" iconPos="right"
-                (click)="toggleSpecs()"></button>
+            <button pButton type="button" class="w-full specs-button" label="View full specs" icon="pi pi-external-link"
+                iconPos="right" (click)="toggleSpecs()">
+            </button>
         </p-card>
 
         <p-card>
             <div class="card-heading">
                 <div>
                     <p class="eyebrow">Fuel & trips</p>
-                    <h2>{{ car().fuel.avgConsumption }} mpg avg</h2>
+                    <!-- <h2>{{ selectedCar().fuel?.avgConsumption }} mpg avg</h2> -->
                 </div>
                 <i class="pi pi-chart-line card-icon"></i>
             </div>
@@ -130,30 +166,30 @@
             <div class="metric-grid">
                 <div>
                     <span>Best</span>
-                    <strong>{{ car().fuel.bestConsumption }} mpg</strong>
+                    <!-- <strong>{{ selectedCar().fuel?.bestConsumption }} mpg</strong> -->
                 </div>
                 <div>
                     <span>Worst</span>
-                    <strong>{{ car().fuel.worstConsumption }} mpg</strong>
+                    <!-- <strong>{{ selectedCar().fuel?.worstConsumption }} mpg</strong> -->
                 </div>
                 <div>
                     <span>Trips</span>
-                    <strong>{{ car().fuel.totalTrips }}</strong>
+                    <!-- <strong>{{ selectedCar().fuel?.totalTrips }}</strong> -->
                 </div>
                 <div>
                     <span>Distance</span>
-                    <strong>{{ car().fuel.totalDistance | number }} mi</strong>
+                    <!-- <strong>{{ selectedCar().fuel?.totalDistance | number }} mi</strong> -->
                 </div>
             </div>
 
             <div class="fuel-cost">
                 <span>Total fuel cost</span>
-                <strong>£{{ car().fuel.totalFuelCost | number }}</strong>
+                <!-- <strong>£{{ selectedCar().fuel?.totalFuelCost | number }}</strong> -->
             </div>
         </p-card>
     </div>
 
-    <div class="graphs-grid">
+    <!-- <div class="graphs-grid">
         <p-card header="Fuel consumption trend">
             <p-chart type="line" [data]="fuelChartData()" [options]="chartOptions"></p-chart>
         </p-card>
@@ -161,11 +197,11 @@
         <p-card header="Monthly trip distance">
             <p-chart type="bar" [data]="distanceChartData()" [options]="chartOptions"></p-chart>
         </p-card>
-    </div>
+    </div> -->
 
-    <p-card header="Recent trips">
+    <!-- <p-card header="Recent trips">
         <div class="trips-list">
-            @for (trip of car().trips; track trip.date + trip.name) {
+            @for (trip of selectedCar().trips; track trip.date + trip.name) {
             <div class="trip-row">
                 <div>
                     <strong>{{ trip.name }}</strong>
@@ -180,5 +216,255 @@
             </div>
             }
         </div>
-    </p-card>
+    </p-card> -->
+    <div class="charts-grid">
+        <p-card>
+            <div class="card-heading">
+                <div>
+                    <h2>Mileage over time</h2>
+                </div>
+                <i class="pi pi-chart-line card-icon"></i>
+            </div>
+
+            <div class="chart-box">
+                <p-chart type="line" [data]="lineData()" [options]="lineOptions()"></p-chart>
+            </div>
+        </p-card>
+
+        <p-card>
+            <div class="card-heading">
+                <div>
+                    <h2>Consumption</h2>
+                </div>
+                <i class="pi pi-chart-line card-icon"></i>
+            </div>
+
+            <div class="chart-box">
+                <p-chart type="line" [data]="lineData()" [options]="lineOptions()"></p-chart>
+            </div>
+        </p-card>
+
+        <p-card>
+            <div class="card-heading">
+                <div>
+                    <h2>Fuel cost</h2>
+                </div>
+                <i class="pi pi-chart-line card-icon"></i>
+            </div>
+
+            <div class="chart-box">
+                <p-chart type="line" [data]="lineData()" [options]="lineOptions()"></p-chart>
+            </div>
+        </p-card>
+    </div>
+    }
+    @else {
+    <p>No car selected.</p>
+    }
 </div>
+
+<p-dialog header="Car details" [visible]="specsPopup()" (visibleChange)="specsPopup.set($event)" [modal]="true"
+    [style]="{ width: 'min(900px, 95vw)' }" [draggable]="false" [resizable]="false">
+    @if (car(); as car) {
+    <div class="dialog-details">
+        <h3>
+            {{ car.versionConfig?.version?.bodyVariant?.generation?.model?.make?.name }}
+            {{ car.versionConfig?.version?.bodyVariant?.generation?.model?.name }}
+            {{ car.versionConfig?.version?.name }}
+        </h3>
+
+        <div class="data-list">
+            <div>
+                <span>Nickname</span>
+                <strong>{{ car.nickname || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Mileage</span>
+                <strong>{{ car.mileageKm | number }} km</strong>
+            </div>
+
+            <div>
+                <span>Color</span>
+                <strong>{{ car.color || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Plate</span>
+                <strong>{{ car.licensePlate || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>VIN</span>
+                <strong>{{ car.vin || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Year</span>
+                <strong>{{ car.versionConfig?.year || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Engine</span>
+                <strong>
+                    {{ car.versionConfig?.engine?.displacementLiters }}L
+                    {{ car.versionConfig?.engine?.configuration }}
+                    {{ car.versionConfig?.engine?.fuelType }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Engine code</span>
+                <strong>{{ car.versionConfig?.engine?.code || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Displacement</span>
+                <strong>
+                    {{ car.versionConfig?.engine?.displacementCc | number }} cc
+                </strong>
+            </div>
+
+            <div>
+                <span>Cylinders</span>
+                <strong>{{ car.versionConfig?.engine?.cylinders || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Aspiration</span>
+                <strong>{{ car.versionConfig?.engine?.aspiration || '—' }}</strong>
+            </div>
+
+            <div>
+                <span>Power</span>
+                <strong>
+                    {{ car.versionConfig?.engine?.powerPs }} PS /
+                    {{ car.versionConfig?.engine?.powerKw }} kW
+                </strong>
+            </div>
+
+            <div>
+                <span>Torque</span>
+                <strong>
+                    {{ car.versionConfig?.engine?.torqueNm }} Nm /
+                    {{ car.versionConfig?.engine?.torqueLbft }} lb-ft
+                </strong>
+            </div>
+
+            <div>
+                <span>Transmission</span>
+                <strong>
+                    {{ car.versionConfig?.transmission?.type }}
+                    ·
+                    {{ car.versionConfig?.transmission?.gears }} gears
+                </strong>
+            </div>
+
+            <div>
+                <span>Drivetrain</span>
+                <strong>
+                    {{ car.versionConfig?.drivetrain?.description || car.versionConfig?.drivetrain?.type || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Fuel type</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.fuelType || car.versionConfig?.engine?.fuelType || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Body type</span>
+                <strong>
+                    {{ car.versionConfig?.version?.bodyVariant?.bodyType?.name || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Body variant</span>
+                <strong>
+                    {{ car.versionConfig?.version?.bodyVariant?.name || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Doors</span>
+                <strong>
+                    {{ car.versionConfig?.version?.bodyVariant?.doors || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Generation</span>
+                <strong>
+                    {{ car.versionConfig?.version?.bodyVariant?.generation?.name || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Phase</span>
+                <strong>
+                    {{ car.versionConfig?.version?.phase?.name || '—' }}
+                </strong>
+            </div>
+
+            <div>
+                <span>Wheelbase</span>
+                <strong>
+                    {{ car.versionConfig?.version?.bodyVariant?.wheelbaseMm || '—' }} mm
+                </strong>
+            </div>
+
+            <div>
+                <span>0-100 km/h</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.zeroTo100 || '—' }} s
+                </strong>
+            </div>
+
+            <div>
+                <span>Top speed</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.topSpeedKmh || '—' }} km/h
+                </strong>
+            </div>
+
+            <div>
+                <span>Length</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.lengthMm || '—' }} mm
+                </strong>
+            </div>
+
+            <div>
+                <span>Width</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.widthMm || '—' }} mm
+                </strong>
+            </div>
+
+            <div>
+                <span>Height</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.heightMm || '—' }} mm
+                </strong>
+            </div>
+
+            <div>
+                <span>Curb weight</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.curbWeightKg || '—' }} kg
+                </strong>
+            </div>
+
+            <div>
+                <span>Trunk</span>
+                <strong>
+                    {{ car.versionConfig?.spec?.trunkLiters || '—' }} L
+                </strong>
+            </div>
+        </div>
+    </div>
+    }
+</p-dialog>
