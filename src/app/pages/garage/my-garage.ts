@@ -148,7 +148,7 @@ export class MyGarage implements OnInit {
         this.catalogError.set(null);
 
         this.requestsService
-            .api('GET', 'models/models', {
+            .api('GET', 'models', {
                 query: {
                     includeCatalog: true,
                     page: 1,

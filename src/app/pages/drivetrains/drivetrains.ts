@@ -113,7 +113,7 @@ export class Drivetrains implements OnInit {
         const countries = await this.countryService.getCountries();
         this.autoValue = countries.map(c => c.name);
 
-        this.requestsService.api('GET', 'drivetrains/drivetrains').subscribe(res => {
+        this.requestsService.api('GET', 'drivetrains').subscribe(res => {
             this.drivetrains.set(res.body?.['drivetrains'] ?? []);
         });
     }
@@ -144,7 +144,7 @@ export class Drivetrains implements OnInit {
 
         this.loading.set(true);
 
-        this.requestsService.api('GET', 'drivetrains/drivetrains', {
+        this.requestsService.api('GET', 'drivetrains', {
             query: {
                 page,
                 limit,
@@ -209,7 +209,7 @@ export class Drivetrains implements OnInit {
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
                 this.requestsService
-                    .api('DELETE', 'drivetrains/drivetrains', { body: { ids: [drivetrain.id] } })
+                    .api('DELETE', 'drivetrains', { body: { ids: [drivetrain.id] } })
                     .subscribe({
                         next: () => {
                             this.drivetrains.set(this.drivetrains().filter((val) => val.id !== drivetrain.id));
@@ -245,7 +245,7 @@ export class Drivetrains implements OnInit {
 
                 const ids = selected.map(m => m.id);
 
-                this.requestsService.api('DELETE', 'drivetrains/drivetrains', { body: { ids } }).subscribe({
+                this.requestsService.api('DELETE', 'drivetrains', { body: { ids } }).subscribe({
                     next: () => {
                         // remove from UI list
                         this.drivetrains.set(this.drivetrains().filter(m => !ids.includes(m.id)));
@@ -320,7 +320,7 @@ export class Drivetrains implements OnInit {
             // UPDATE
             if (this.drivetrain.id) {
                 const res: any = await this.requestsService
-                    .api('PATCH', 'drivetrains/drivetrains', {
+                    .api('PATCH', 'drivetrains', {
                         ids: this.drivetrain.id,
                         body: payload,
                     })
@@ -332,7 +332,7 @@ export class Drivetrains implements OnInit {
             // CREATE
             else {
                 const res: any = await this.requestsService
-                    .api('POST', 'drivetrains/drivetrains', {
+                    .api('POST', 'drivetrains', {
                         body: payload,
                     })
                     .toPromise();

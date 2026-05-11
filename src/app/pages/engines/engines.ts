@@ -134,7 +134,7 @@ export class Engines implements OnInit {
         const countries = await this.countryService.getCountries();
         this.autoValue = countries.map(c => c.name);
 
-        this.requestsService.api('GET', 'engines/engines').subscribe(res => {
+        this.requestsService.api('GET', 'engines').subscribe(res => {
             this.engines.set(res.body?.['engines'] ?? []);
         });
     }
@@ -165,7 +165,7 @@ export class Engines implements OnInit {
 
         this.loading.set(true);
 
-        this.requestsService.api('GET', 'engines/engines', {
+        this.requestsService.api('GET', 'engines', {
             query: {
                 page,
                 limit,
@@ -230,7 +230,7 @@ export class Engines implements OnInit {
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
                 this.requestsService
-                    .api('DELETE', 'engines/engines', { body: { ids: [engine.id] } })
+                    .api('DELETE', 'engines', { body: { ids: [engine.id] } })
                     .subscribe({
                         next: () => {
                             this.engines.set(this.engines().filter((val) => val.id !== engine.id));
@@ -266,7 +266,7 @@ export class Engines implements OnInit {
 
                 const ids = selected.map(m => m.id);
 
-                this.requestsService.api('DELETE', 'engines/engines', { body: { ids } }).subscribe({
+                this.requestsService.api('DELETE', 'engines', { body: { ids } }).subscribe({
                     next: () => {
                         // remove from UI list
                         this.engines.set(this.engines().filter(m => !ids.includes(m.id)));
@@ -350,7 +350,7 @@ export class Engines implements OnInit {
             // UPDATE
             if (this.engine.id) {
                 const res: any = await this.requestsService
-                    .api('PATCH', 'engines/engines', {
+                    .api('PATCH', 'engines', {
                         ids: this.engine.id,
                         body: payload,
                     })
@@ -362,7 +362,7 @@ export class Engines implements OnInit {
             // CREATE
             else {
                 const res: any = await this.requestsService
-                    .api('POST', 'engines/engines', {
+                    .api('POST', 'engines', {
                         body: payload,
                     })
                     .toPromise();

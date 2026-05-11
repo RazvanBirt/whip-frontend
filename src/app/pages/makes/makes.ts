@@ -118,7 +118,7 @@ export class Makes implements OnInit {
         const countries = await this.countryService.getCountries();
         this.autoValue = countries.map(c => c.name);
 
-        this.requestsService.api('GET', 'makes/makes').subscribe(res => {
+        this.requestsService.api('GET', 'makes').subscribe(res => {
             this.makes.set(res.body?.['makes'] ?? []);
         });
     }
@@ -149,7 +149,7 @@ export class Makes implements OnInit {
 
         this.loading.set(true);
 
-        this.requestsService.api('GET', 'makes/makes', {
+        this.requestsService.api('GET', 'makes', {
             query: {
                 page,
                 limit,
@@ -267,7 +267,7 @@ export class Makes implements OnInit {
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
                 this.requestsService
-                    .api('DELETE', 'makes/makes', { body: { ids: [make.id] } })
+                    .api('DELETE', 'makes', { body: { ids: [make.id] } })
                     .subscribe({
                         next: () => {
                             this.makes.set(this.makes().filter((val) => val.id !== make.id));
@@ -304,7 +304,7 @@ export class Makes implements OnInit {
 
                 const ids = selected.map(m => m.id);
 
-                this.requestsService.api('DELETE', 'makes/makes', { body: { ids } }).subscribe({
+                this.requestsService.api('DELETE', 'makes', { body: { ids } }).subscribe({
                     next: () => {
                         // remove from UI list
                         this.makes.set(this.makes().filter(m => !ids.includes(m.id)));
@@ -381,7 +381,7 @@ export class Makes implements OnInit {
                     fd.append('image', this.selectedImageFile);
 
                     const res: any = await this.requestsService
-                        .api('PATCH', 'makes/makes', {
+                        .api('PATCH', 'makes', {
                             ids: this.make.id,
                             body: fd
                         })
@@ -393,7 +393,7 @@ export class Makes implements OnInit {
                 else {
                     // send JSON (no image)
                     await this.requestsService
-                        .api('PATCH', 'makes/makes', {
+                        .api('PATCH', 'makes', {
                             ids: this.make.id,
                             body: {
                                 name: this.make.name,
@@ -415,7 +415,7 @@ export class Makes implements OnInit {
                     fd.append('image', this.selectedImageFile);
 
                     const createRes: any = await this.requestsService
-                        .api('POST', 'makes/makes/with-image', { body: fd })
+                        .api('POST', 'makes/with-image', { body: fd })
                         .toPromise();
 
                     const created = createRes?.body?.make;
@@ -423,7 +423,7 @@ export class Makes implements OnInit {
                 } else {
                     // No image: your existing JSON create endpoint
                     await this.requestsService
-                        .api('POST', 'makes/makes', {
+                        .api('POST', 'makes', {
                             body: { name: this.make.name, country: this.make.country }
                         })
                         .toPromise();

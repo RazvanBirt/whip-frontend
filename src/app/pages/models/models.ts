@@ -304,7 +304,7 @@ export class Models implements OnInit {
         const countries = await this.countryService.getCountries();
         this.autoValue = countries.map((c) => c.name);
 
-        this.requestsService.api('GET', 'models/models').subscribe((res) => {
+        this.requestsService.api('GET', 'models').subscribe((res) => {
             const body = this.bodyData(res);
             this.models.set(body?.models ?? []);
             this.totalRecords.set(body?.total ?? 0);
@@ -352,7 +352,7 @@ export class Models implements OnInit {
         this.loading.set(true);
 
         this.requestsService
-            .api('GET', 'models/models', {
+            .api('GET', 'models', {
                 query: {
                     page,
                     limit,
@@ -415,7 +415,7 @@ export class Models implements OnInit {
         this.loading.set(true);
 
         this.requestsService
-            .api('GET', `models/models/${modelId}`, {
+            .api('GET', `models/${modelId}`, {
                 query: { includeCatalog: true }
             })
             .subscribe({
@@ -676,7 +676,7 @@ export class Models implements OnInit {
                 const ids = selected.map((m) => m.id);
 
                 this.requestsService
-                    .api('DELETE', 'models/models', { body: { ids } })
+                    .api('DELETE', 'models', { body: { ids } })
                     .subscribe({
                         next: () => {
                             this.models.set(
@@ -719,7 +719,7 @@ export class Models implements OnInit {
                     fd.append('image', this.selectedImageFile);
 
                     const res: any = await this.requestsService
-                        .api('PATCH', 'models/models', {
+                        .api('PATCH', 'models', {
                             ids: this.model.id,
                             body: fd
                         })
@@ -729,7 +729,7 @@ export class Models implements OnInit {
                     this.model = body?.model ?? this.model;
                 } else {
                     await this.requestsService
-                        .api('PATCH', 'models/models', {
+                        .api('PATCH', 'models', {
                             ids: this.model.id,
                             body: {
                                 name: this.model.name,
@@ -746,7 +746,7 @@ export class Models implements OnInit {
                     fd.append('image', this.selectedImageFile);
 
                     const createRes: any = await this.requestsService
-                        .api('POST', 'models/models/with-image', { body: fd })
+                        .api('POST', 'models/with-image', { body: fd })
                         .toPromise();
 
                     const body = this.bodyData(createRes);
@@ -754,7 +754,7 @@ export class Models implements OnInit {
                     if (created) this.model = created;
                 } else {
                     await this.requestsService
-                        .api('POST', 'models/models', {
+                        .api('POST', 'models', {
                             body: {
                                 name: this.model.name,
                                 country: this.model.country

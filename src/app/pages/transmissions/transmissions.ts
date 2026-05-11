@@ -113,7 +113,7 @@ export class Transmissions implements OnInit {
         const countries = await this.countryService.getCountries();
         this.autoValue = countries.map(c => c.name);
 
-        this.requestsService.api('GET', 'transmissions/transmissions').subscribe(res => {
+        this.requestsService.api('GET', 'transmissions').subscribe(res => {
             this.transmissions.set(res.body?.['transmissions'] ?? []);
         });
     }
@@ -144,7 +144,7 @@ export class Transmissions implements OnInit {
 
         this.loading.set(true);
 
-        this.requestsService.api('GET', 'body-types/body-types', {
+        this.requestsService.api('GET', 'body-types', {
             query: {
                 page,
                 limit,
@@ -209,7 +209,7 @@ export class Transmissions implements OnInit {
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
                 this.requestsService
-                    .api('DELETE', 'transmissions/transmissions', { body: { ids: [transmission.id] } })
+                    .api('DELETE', 'transmissions', { body: { ids: [transmission.id] } })
                     .subscribe({
                         next: () => {
                             this.transmissions.set(this.transmissions().filter((val) => val.id !== transmission.id));
@@ -245,7 +245,7 @@ export class Transmissions implements OnInit {
 
                 const ids = selected.map(m => m.id);
 
-                this.requestsService.api('DELETE', 'transmissions/transmissions', { body: { ids } }).subscribe({
+                this.requestsService.api('DELETE', 'transmissions', { body: { ids } }).subscribe({
                     next: () => {
                         // remove from UI list
                         this.transmissions.set(this.transmissions().filter(m => !ids.includes(m.id)));
@@ -320,7 +320,7 @@ export class Transmissions implements OnInit {
             // UPDATE
             if (this.transmission.id) {
                 const res: any = await this.requestsService
-                    .api('PATCH', 'transmissions/transmissions', {
+                    .api('PATCH', 'transmissions', {
                         ids: this.transmission.id,
                         body: payload,
                     })
@@ -332,7 +332,7 @@ export class Transmissions implements OnInit {
             // CREATE
             else {
                 const res: any = await this.requestsService
-                    .api('POST', 'transmissions/transmissions', {
+                    .api('POST', 'transmissions', {
                         body: payload,
                     })
                     .toPromise();

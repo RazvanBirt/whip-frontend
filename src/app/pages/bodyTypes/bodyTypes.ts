@@ -112,7 +112,7 @@ export class BodyTypes implements OnInit {
         const countries = await this.countryService.getCountries();
         this.autoValue = countries.map(c => c.name);
 
-        this.requestsService.api('GET', 'body-types/body-types').subscribe(res => {
+        this.requestsService.api('GET', 'body-types').subscribe(res => {
             this.bodyTypes.set(res.body?.['bodyTypes'] ?? []);
         });
     }
@@ -143,7 +143,7 @@ export class BodyTypes implements OnInit {
 
         this.loading.set(true);
 
-        this.requestsService.api('GET', 'body-types/body-types', {
+        this.requestsService.api('GET', 'body-types', {
             query: {
                 page,
                 limit,
@@ -208,7 +208,7 @@ export class BodyTypes implements OnInit {
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
                 this.requestsService
-                    .api('DELETE', 'body-types/body-types', { body: { ids: [bodyType.id] } })
+                    .api('DELETE', 'body-types', { body: { ids: [bodyType.id] } })
                     .subscribe({
                         next: () => {
                             this.bodyTypes.set(this.bodyTypes().filter((val) => val.id !== bodyType.id));
@@ -244,7 +244,7 @@ export class BodyTypes implements OnInit {
 
                 const ids = selected.map(m => m.id);
 
-                this.requestsService.api('DELETE', 'body-types/body-types', { body: { ids } }).subscribe({
+                this.requestsService.api('DELETE', 'body-types', { body: { ids } }).subscribe({
                     next: () => {
                         // remove from UI list
                         this.bodyTypes.set(this.bodyTypes().filter(m => !ids.includes(m.id)));
@@ -318,7 +318,7 @@ export class BodyTypes implements OnInit {
             // UPDATE
             if (this.bodyType.id) {
                 const res: any = await this.requestsService
-                    .api('PATCH', 'body-types/body-types', {
+                    .api('PATCH', 'body-types', {
                         ids: this.bodyType.id,
                         body: payload,
                     })
@@ -330,7 +330,7 @@ export class BodyTypes implements OnInit {
             // CREATE
             else {
                 const res: any = await this.requestsService
-                    .api('POST', 'body-types/body-types', {
+                    .api('POST', 'body-types', {
                         body: payload,
                     })
                     .toPromise();
