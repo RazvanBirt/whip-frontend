@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { map } from 'rxjs';
+import { map, throwError } from 'rxjs';
 import { RequestsService } from '../../src/app/pages/service/requests.service';
 import { HttpResponse } from '@angular/common/http';
 
@@ -107,20 +107,24 @@ export class AuthService {
 
     refresh() {
         const rt = this.refreshToken;
-        if (!rt) throw new Error('Missing refresh token');
+        if (!rt) return throwError(() => new Error('Missing refresh token'));
 
-        return this.req.api<{ success: boolean; accessToken?: string; refreshToken?: string }>(
-            'POST',
-            'auth/refresh',
-            { body: { refreshToken: rt } }
-        ).pipe(
-            map((r: HttpResponse<any>) => r.body),
+        return this.req.api<any>('POST', 'auth/refresh', {
+            body: { refreshToken: rt },
+        }).pipe(
+            map((r) => r.body),
             map((body: any) => {
-                if (!body?.success) throw body;
-                // refresh rotates refreshToken too in your backend
-                if (body.accessToken) localStorage.setItem(this.ACCESS_KEY, body.accessToken);
-                if (body.refreshToken) localStorage.setItem(this.REFRESH_KEY, body.refreshToken);
-                return body;
+                const result = body?.data ?? body;
+
+                const accessToken = result?.accessToken;
+                const refreshToken = result?.refreshToken;
+
+                if (!accessToken || !refreshToken) throw result;
+
+                localStorage.setItem(this.ACCESS_KEY, accessToken);
+                localStorage.setItem(this.REFRESH_KEY, refreshToken);
+
+                return result;
             })
         );
     }
