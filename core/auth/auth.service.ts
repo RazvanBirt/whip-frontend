@@ -9,6 +9,15 @@ type RegisterPayload = { Email: string; Password: string };
 type LoginPayload = { Email: string; Password: string };
 type LogoutPayload = { refreshToken: string };
 
+type ForgotPasswordPayload = {
+    Email: string;
+};
+
+type ResetPasswordPayload = {
+    Token: string;
+    NewPassword: string;
+};
+
 type AuthSuccess = {
     success: true;
     user: UserDto;
@@ -124,6 +133,28 @@ export class AuthService {
                 localStorage.setItem(this.ACCESS_KEY, accessToken);
                 localStorage.setItem(this.REFRESH_KEY, refreshToken);
 
+                return result;
+            })
+        );
+    }
+
+    forgotPassword(payload: ForgotPasswordPayload) {
+        return this.req.api('POST', 'auth/forgot-password', { body: payload }).pipe(
+            map((res) => res.body),
+            map((body) => {
+                const result = body?.data ?? body;
+                if (!result?.success) throw result;
+                return result;
+            })
+        );
+    }
+
+    resetPassword(payload: ResetPasswordPayload) {
+        return this.req.api('POST', 'auth/reset-password', { body: payload }).pipe(
+            map((res) => res.body),
+            map((body) => {
+                const result = body?.data ?? body;
+                if (!result?.success) throw result;
                 return result;
             })
         );

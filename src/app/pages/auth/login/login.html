@@ -1,0 +1,105 @@
+<app-floating-configurator />
+<p-toast />
+
+<div class="min-h-screen bg-surface-50 dark:bg-surface-950 flex">
+    <div class="hidden lg:flex flex-1 bg-primary text-white p-12 flex-col justify-between">
+        <a routerLink="/" class="flex items-center gap-3 text-white no-underline">
+            <div class="w-11 h-11 rounded-2xl bg-white text-primary flex items-center justify-center font-bold text-xl">
+                W
+            </div>
+            <span class="text-2xl font-bold">Whip</span>
+        </a>
+
+        <div>
+            <p class="uppercase tracking-widest text-white/70 font-semibold mb-4">
+                Welcome back
+            </p>
+
+            <h1 class="text-5xl font-bold leading-tight mb-6">
+                Sign in and get back to your garage.
+            </h1>
+
+            <p class="text-xl text-white/80 max-w-xl">
+                Track your cars, mileage, specs, fuel data and maintenance in one place.
+            </p>
+        </div>
+
+        <div class="text-white/70">
+            New here?
+            <a routerLink="/auth/register" class="text-white font-semibold ml-1">
+                Create an account
+            </a>
+        </div>
+    </div>
+
+    <div class="flex-1 flex items-center justify-center p-6">
+        <div class="w-full max-w-md">
+            <div class="mb-8 flex items-center justify-between">
+                <a routerLink="/" class="flex items-center gap-3 no-underline lg:hidden">
+                    <div class="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center font-bold">
+                        W
+                    </div>
+                    <span class="text-surface-900 dark:text-surface-0 text-2xl font-bold">
+                        Whip
+                    </span>
+                </a>
+
+                <a routerLink="/" class="text-primary font-medium no-underline">
+                    Back to home
+                </a>
+            </div>
+
+            <div class="bg-surface-0 dark:bg-surface-900 rounded-3xl shadow p-8">
+                <div class="mb-8">
+                    <p class="text-primary font-semibold mb-2">Login</p>
+
+                    <h2 class="text-surface-900 dark:text-surface-0 text-3xl font-bold mb-2">
+                        Welcome back
+                    </h2>
+
+                    <p class="text-muted-color m-0">
+                        Enter your credentials to continue.
+                    </p>
+                </div>
+
+                <label for="email" class="block text-surface-900 dark:text-surface-0 font-medium mb-2">
+                    Email
+                </label>
+
+                <input pInputText id="email" type="email" placeholder="you@example.com" class="w-full mb-4"
+                    [(ngModel)]="email" />
+
+                <label for="password" class="block text-surface-900 dark:text-surface-0 font-medium mb-2">
+                    Password
+                </label>
+
+                <p-password id="password" [(ngModel)]="password" placeholder="Password" [toggleMask]="true"
+                    [feedback]="false" styleClass="w-full mb-4" inputStyleClass="w-full" (keydown)="onEnter($event)" />
+
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-2">
+                        <p-checkbox [(ngModel)]="checked" binary inputId="remember" />
+
+                        <label for="remember" class="text-surface-700 dark:text-surface-300">
+                            Remember me
+                        </label>
+                    </div>
+
+                    <a routerLink="/auth/forgot-password" class="text-primary font-medium no-underline">
+                        Forgot password?
+                    </a>
+                </div>
+
+                <button pButton pRipple label="Login" class="w-full mb-6" [loading]="loading"
+                    (click)="onLogin()"></button>
+
+                <div class="text-center text-surface-600 dark:text-surface-300">
+                    Don’t have an account?
+                    <a routerLink="/auth/register" class="text-primary font-semibold no-underline ml-1">
+                        Register
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

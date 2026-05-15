@@ -29,6 +29,13 @@ import { AppFloatingConfigurator } from "@/app/layout/component/app.floatingconf
             <span class="text-surface-900 dark:text-surface-0 font-medium text-2xl leading-normal mr-20">SAKAI</span>
         </a>
 
+        <!-- <a routerLink="/" class="flex items-center gap-3 text-white no-underline">
+            <div class="w-11 h-11 rounded-2xl bg-white text-primary flex items-center justify-center font-bold text-xl">
+                W
+            </div>
+            <span class="text-2xl font-bold">Whip</span>
+        </a> -->
+
         <a pButton [text]="true" severity="secondary" [rounded]="true" pRipple class="lg:hidden!" pStyleClass="@next" enterFromClass="hidden" leaveToClass="hidden" [hideOnOutsideClick]="true">
             <i class="pi pi-bars text-2xl!"></i>
         </a>
