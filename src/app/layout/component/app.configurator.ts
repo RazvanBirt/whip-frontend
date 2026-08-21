@@ -2,13 +2,14 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, computed, inject, PLATFORM_ID, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { $t, updatePreset, updateSurfacePalette } from '@primeuix/themes';
+import { $t } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 import Lara from '@primeuix/themes/lara';
 import Nora from '@primeuix/themes/nora';
 import { PrimeNG } from 'primeng/config';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { LayoutService } from '@/app/layout/service/layout.service';
+import { UserSettingsService } from '../../pages/service/user-settings.service';
 
 const presets = {
     Aura,
@@ -96,6 +97,8 @@ declare type SurfacesType = {
     }
 })
 export class AppConfigurator {
+    private userSettings = inject(UserSettingsService);
+
     router = inject(Router);
 
     config: PrimeNG = inject(PrimeNG);
@@ -116,9 +119,27 @@ export class AppConfigurator {
     ];
 
     ngOnInit() {
-        if (isPlatformBrowser(this.platformId)) {
-            this.onPresetChange(this.layoutService.layoutConfig().preset);
+        if (!isPlatformBrowser(this.platformId)) {
+            return;
         }
+
+        this.userSettings.getTheme().subscribe({
+            next: (theme) => {
+                this.layoutService.layoutConfig.update((state) => ({
+                    ...state,
+                    ...theme
+                }));
+
+                this.layoutService.toggleDarkMode();
+
+                this.applyCurrentTheme();
+            },
+            error: () => {
+                this.layoutService.toggleDarkMode();
+
+                this.applyCurrentTheme();
+            }
+        });
     }
 
     surfaces: SurfacesType[] = [
@@ -416,31 +437,63 @@ export class AppConfigurator {
 
     updateColors(event: any, type: string, color: any) {
         if (type === 'primary') {
-            this.layoutService.layoutConfig.update((state) => ({ ...state, primary: color.name }));
+            this.layoutService.layoutConfig.update((state) => ({
+                ...state,
+                primary: color.name
+            }));
         } else if (type === 'surface') {
-            this.layoutService.layoutConfig.update((state) => ({ ...state, surface: color.name }));
+            this.layoutService.layoutConfig.update((state) => ({
+                ...state,
+                surface: color.name
+            }));
         }
-        this.applyTheme(type, color);
+
+        this.applyCurrentTheme();
+        this.saveCurrentTheme();
 
         event.stopPropagation();
     }
 
-    applyTheme(type: string, color: any) {
-        if (type === 'primary') {
-            updatePreset(this.getPresetExt());
-        } else if (type === 'surface') {
-            updateSurfacePalette(color.palette);
-        }
-    }
-
     onPresetChange(event: any) {
-        this.layoutService.layoutConfig.update((state) => ({ ...state, preset: event }));
-        const preset = presets[event as KeyOfType<typeof presets>];
-        const surfacePalette = this.surfaces.find((s) => s.name === this.selectedSurfaceColor())?.palette;
-        $t().preset(preset).preset(this.getPresetExt()).surfacePalette(surfacePalette).use({ useDefaultOptions: true });
+        this.layoutService.layoutConfig.update((state) => ({
+            ...state,
+            preset: event
+        }));
+
+        this.applyCurrentTheme();
+        this.saveCurrentTheme();
     }
 
     onMenuModeChange(event: string) {
         this.layoutService.layoutConfig.update((prev) => ({ ...prev, menuMode: event }));
+    }
+
+    applyCurrentTheme() {
+        const config = this.layoutService.layoutConfig();
+
+        const preset =
+            presets[config.preset as KeyOfType<typeof presets>];
+
+        const surfacePalette = this.surfaces.find(
+            (surface) => surface.name === config.surface
+        )?.palette;
+
+        $t()
+            .preset(preset)
+            .preset(this.getPresetExt())
+            .surfacePalette(surfacePalette)
+            .use({
+                useDefaultOptions: true
+            });
+    }
+
+    saveCurrentTheme() {
+        this.userSettings
+            .saveTheme(this.layoutService.layoutConfig())
+            .subscribe({
+                error: (err) => {
+                    console.error('Failed to save theme', err);
+                }
+            });
     }
 }

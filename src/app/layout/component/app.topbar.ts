@@ -9,6 +9,8 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { MenuModule } from 'primeng/menu';
 
+import { UserSettingsService } from '../../pages/service/user-settings.service';
+
 
 @Component({
     selector: 'app-topbar',
@@ -90,11 +92,13 @@ import { MenuModule } from 'primeng/menu';
     </div>`
 })
 export class AppTopbar {
+
+    private userSettings = inject(UserSettingsService);
+
     layoutService = inject(LayoutService);
     private auth = inject(AuthService);
     private router = inject(Router);
 
-    // ✅ menu items
     get profileItems(): MenuItem[] {
         const email = this.auth.email ?? 'there';
 
@@ -121,8 +125,16 @@ export class AppTopbar {
     toggleDarkMode() {
         this.layoutService.layoutConfig.update((state) => ({
             ...state,
-            darkTheme: !state.darkTheme,
+            darkTheme: !state.darkTheme
         }));
+
+        this.userSettings
+            .saveTheme(this.layoutService.layoutConfig())
+            .subscribe({
+                error: (err) => {
+                    console.error('Failed to save theme', err);
+                }
+            });
     }
 
     logout() {
