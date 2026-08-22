@@ -123,6 +123,11 @@ export class AppConfigurator {
             return;
         }
 
+        // Always apply the local/default theme first
+        this.layoutService.toggleDarkMode();
+        this.applyCurrentTheme();
+
+        // If authenticated, the saved user theme can override it
         this.userSettings.getTheme().subscribe({
             next: (theme) => {
                 this.layoutService.layoutConfig.update((state) => ({
@@ -131,17 +136,10 @@ export class AppConfigurator {
                 }));
 
                 this.layoutService.toggleDarkMode();
-
-                this.applyCurrentTheme();
-            },
-            error: () => {
-                this.layoutService.toggleDarkMode();
-
                 this.applyCurrentTheme();
             }
         });
     }
-
     surfaces: SurfacesType[] = [
         {
             name: 'slate',
